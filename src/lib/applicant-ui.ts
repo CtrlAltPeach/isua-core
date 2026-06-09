@@ -27,6 +27,20 @@ export function formatDate(date: string | Date, timezone: string): string {
   }
 }
 
+// Только время (HH:MM:SS) в выбранной таймзоне — для двухстрочной даты в таблице.
+export function formatTime(date: string | Date, timezone: string): string {
+  try {
+    return new Intl.DateTimeFormat("ru-RU", {
+      timeZone: timezone,
+      hour: "2-digit",
+      minute: "2-digit",
+      second: "2-digit",
+    }).format(new Date(date));
+  } catch {
+    return new Date(date).toLocaleTimeString("ru-RU");
+  }
+}
+
 export function formatDateTime(date: string | Date, timezone: string): string {
   try {
     return new Intl.DateTimeFormat("ru-RU", {

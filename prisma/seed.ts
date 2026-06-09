@@ -80,16 +80,20 @@ async function seedApplicants(createdByUserId: number) {
       : `${last} ${rnd(FIRST_M)} ${rnd(MID_M)}`;
 
     const status = rnd(STATUSES);
+    // Математика: ЛИБО база, ЛИБО профиль (взаимоисключающи).
+    const takesBase = Math.random() < 0.4;
+    const mathBase = takesBase ? 2 + Math.floor(Math.random() * 4) : null; // 2..5
     const scores = {
-      mathProfile: maybe(rndScore()),
+      mathProfile: takesBase ? null : maybe(rndScore(), 0.9),
       russian: maybe(rndScore(), 0.95),
       chemistry: maybe(rndScore(), 0.4),
       physics: maybe(rndScore(), 0.5),
       informatics: maybe(rndScore(), 0.5),
       geography: maybe(rndScore(), 0.2),
     };
-    // Балл считаем той же логикой, что и API (сумма топ-3, мин. 3 предмета).
-    const totalScore = calculateTotalScore(scores);
+    const additionalScores = Math.random() < 0.3 ? 1 + Math.floor(Math.random() * 10) : 0;
+    // Балл: сумма топ-3 предметов + доп. баллы (mathBase не входит).
+    const totalScore = calculateTotalScore(scores, additionalScores);
 
     // Согласие — у части подавших; забравшие — всегда false.
     const consent = status === "applied" && Math.random() < 0.5;
@@ -103,8 +107,13 @@ async function seedApplicants(createdByUserId: number) {
         email: maybe(`abit${i}@example.com`, 0.6) ?? undefined,
         consentToEnroll: consent,
         documentsComplete: Math.random() < 0.6,
-        mathBase: maybe(2 + Math.floor(Math.random() * 4), 0.5) ?? undefined, // 2..5
+        specialQuota: Math.random() < 0.15,
+        isPaid: Math.random() < 0.2,
+        documentType: rnd(["diploma", "certificate", null] as const) ?? undefined,
+        citizenship: rnd(["Россия", "Россия", "Россия", "Беларусь", "Казахстан"] as const),
+        mathBase: mathBase ?? undefined,
         ...scores,
+        additionalScores,
         totalScore,
         notes: rnd(NOTES) ?? undefined,
         createdByUserId,

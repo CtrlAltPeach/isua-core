@@ -92,7 +92,14 @@ export async function POST(req: NextRequest) {
   if (!program) return fail("Указанная программа не найдена", 422);
 
   const status = (data.status ?? "applied") as ApplicantStatus;
-  const totalScore = calculateTotalScore(data);
+  // Математика база и профиль взаимоисключающи: если задана база, профиль обнуляем.
+  const mathBase = data.mathBase ?? null;
+  const mathProfile = mathBase != null ? null : (data.mathProfile ?? null);
+  const additionalScores = data.additionalScores ?? 0;
+  const totalScore = calculateTotalScore(
+    { ...data, mathProfile },
+    additionalScores,
+  );
   const consent = normalizeConsent(status, data.consentToEnroll ?? false);
 
   const created = await prisma.applicant.create({
@@ -104,13 +111,20 @@ export async function POST(req: NextRequest) {
       email: data.email,
       consentToEnroll: consent,
       documentsComplete: data.documentsComplete ?? false,
-      mathBase: data.mathBase,
-      mathProfile: data.mathProfile,
+      specialQuota: data.specialQuota ?? false,
+      isPaid: data.isPaid ?? false,
+      documentType: data.documentType ?? null,
+      citizenship: data.citizenship,
+      passportSeries: data.passportSeries,
+      passportNumber: data.passportNumber,
+      mathBase,
+      mathProfile,
       russian: data.russian,
       chemistry: data.chemistry,
       physics: data.physics,
       informatics: data.informatics,
       geography: data.geography,
+      additionalScores,
       totalScore,
       registrationAddress: data.registrationAddress,
       inn: data.inn,

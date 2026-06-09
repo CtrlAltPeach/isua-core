@@ -39,6 +39,15 @@ const applicantBase = {
     .transform((v) => (v === "" || v === undefined ? null : v)),
   consentToEnroll: z.coerce.boolean().optional(),
   documentsComplete: z.coerce.boolean().optional(),
+  specialQuota: z.coerce.boolean().optional(),
+  isPaid: z.coerce.boolean().optional(),
+  documentType: z
+    .union([z.enum(["diploma", "certificate"]), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v === "" || v === undefined ? null : v)),
+  citizenship: optionalString,
+  passportSeries: optionalString,
+  passportNumber: optionalString,
   mathBase: z
     .union([z.coerce.number().int().min(2).max(5), z.literal(""), z.null()])
     .optional()
@@ -49,6 +58,11 @@ const applicantBase = {
   physics: scoreField,
   informatics: scoreField,
   geography: scoreField,
+  // Доп. баллы / ВИ: целое ≥0, без верхней границы (может поднять итог >300).
+  additionalScores: z
+    .union([z.coerce.number().int().min(0), z.literal(""), z.null()])
+    .optional()
+    .transform((v) => (v === "" || v === undefined || v === null ? 0 : (v as number))),
   registrationAddress: optionalString,
   inn: optionalString,
   snils: optionalString,

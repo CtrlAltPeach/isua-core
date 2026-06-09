@@ -76,6 +76,14 @@ export async function PUT(
   void _version;
   const updates: Prisma.ApplicantUpdateInput = {};
 
+  // Математика база/профиль взаимоисключающи: если в запросе задана база (не null),
+  // профиль принудительно очищаем (и наоборот).
+  if ("mathBase" in rest && rest.mathBase != null) {
+    (rest as Record<string, unknown>).mathProfile = null;
+  } else if ("mathProfile" in rest && rest.mathProfile != null) {
+    (rest as Record<string, unknown>).mathBase = null;
+  }
+
   // Простые поля.
   const SIMPLE_FIELDS = [
     "fullName",
@@ -83,6 +91,12 @@ export async function PUT(
     "email",
     "programId",
     "documentsComplete",
+    "specialQuota",
+    "isPaid",
+    "documentType",
+    "citizenship",
+    "passportSeries",
+    "passportNumber",
     "mathBase",
     "mathProfile",
     "russian",
@@ -90,6 +104,7 @@ export async function PUT(
     "physics",
     "informatics",
     "geography",
+    "additionalScores",
     "registrationAddress",
     "inn",
     "snils",
@@ -117,18 +132,24 @@ export async function PUT(
     afterForHistory.status = statusInput;
   }
 
-  // Пересчёт total_score, если изменился любой предметный балл.
-  const scoreTouched = SCORE_FIELDS.some((f) => f in rest);
+  // Пересчёт total_score при изменении любого предметного балла или доп. баллов.
+  // ВАЖНО: берём переданное значение, даже если это null (поле очищено),
+  // иначе `?? current` ошибочно вернёт старое значение.
+  const pick = <K extends keyof typeof current>(k: K) =>
+    k in rest ? (rest as Record<string, unknown>)[k as string] : current[k];
+  const scoreTouched =
+    SCORE_FIELDS.some((f) => f in rest) || "additionalScores" in rest;
   if (scoreTouched) {
     const merged = {
-      mathProfile: rest.mathProfile ?? current.mathProfile,
-      russian: rest.russian ?? current.russian,
-      chemistry: rest.chemistry ?? current.chemistry,
-      physics: rest.physics ?? current.physics,
-      informatics: rest.informatics ?? current.informatics,
-      geography: rest.geography ?? current.geography,
+      mathProfile: pick("mathProfile") as number | null,
+      russian: pick("russian") as number | null,
+      chemistry: pick("chemistry") as number | null,
+      physics: pick("physics") as number | null,
+      informatics: pick("informatics") as number | null,
+      geography: pick("geography") as number | null,
     };
-    updates.totalScore = calculateTotalScore(merged);
+    const extra = pick("additionalScores") as number | null;
+    updates.totalScore = calculateTotalScore(merged, extra ?? 0);
   }
 
   // Согласие: нормализуем по итоговому статусу.

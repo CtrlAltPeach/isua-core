@@ -5,14 +5,12 @@ import {
   Search,
   Plus,
   Pencil,
-  Trash2,
   ChevronLeft,
   ChevronRight,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
   Check,
-  Sigma,
   Loader2,
 } from "lucide-react";
 import {
@@ -23,7 +21,12 @@ import {
 } from "@/lib/api";
 import type { ApplicantWithProgram, ApplicantStatus } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
-import { STATUS_META, STATUS_OPTIONS, formatDate } from "@/lib/applicant-ui";
+import {
+  STATUS_META,
+  STATUS_OPTIONS,
+  formatDate,
+  formatTime,
+} from "@/lib/applicant-ui";
 import { Button, Input, Select, Badge, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -46,11 +49,12 @@ const COLUMNS: {
   // Узкие центрированные колонки с галочками.
   { key: null, label: "Согл.", align: "center", thClass: "w-14" },
   { key: null, label: "Док.", align: "center", thClass: "w-14" },
+  { key: null, label: "Гражданство", thClass: "w-28" },
+  { key: null, label: "Паспорт", thClass: "w-28" },
   { key: null, label: "Телефон", thClass: "w-32" },
   { key: null, label: "Email", thClass: "w-40" },
-  { key: null, label: "Заметки", thClass: "w-28" },
   { key: "createdAt", label: "Дата", thClass: "w-24" },
-  { key: null, label: "", thClass: "w-20" },
+  { key: null, label: "", thClass: "w-12" },
 ];
 
 export function ApplicantTable({
@@ -68,7 +72,6 @@ export function ApplicantTable({
   const [items, setItems] = useState<ApplicantWithProgram[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
-  const [deletingId, setDeletingId] = useState<number | null>(null);
 
   // Фильтры (локальное состояние таблицы).
   const [search, setSearch] = useState("");
@@ -142,18 +145,7 @@ export function ApplicantTable({
     setPage(1);
   };
 
-  const handleDelete = async (a: ApplicantWithProgram) => {
-    if (!confirm(`Удалить абитуриента «${a.fullName}»?`)) return;
-    setDeletingId(a.id);
-    try {
-      await applicantsApi.remove(a.id);
-      await load();
-    } catch {
-      alert("Не удалось удалить");
-    } finally {
-      setDeletingId(null);
-    }
-  };
+  // Удаление вынесено в отдельный интерфейс (см. бэклог) — из строки убрано.
 
   const totalPages = Math.max(1, Math.ceil(total / limit));
   const from = total === 0 ? 0 : (page - 1) * limit + 1;
@@ -278,15 +270,31 @@ export function ApplicantTable({
                     >
                       <td className="px-2.5 py-3 font-medium text-slate-900">
                         <span className="flex items-center gap-1.5 whitespace-nowrap">
+                          {a.fullName}
                           {a.mathBase != null && (
                             <span
                               title={`База математики: ${a.mathBase}`}
-                              className="inline-flex shrink-0"
+                              className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-rose-100 text-xs font-bold text-rose-700"
                             >
-                              <Sigma className="size-4 text-rose-600" />
+                              Б
                             </span>
                           )}
-                          {a.fullName}
+                          {a.specialQuota && (
+                            <span
+                              title="Особая квота"
+                              className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-orange-100 text-xs font-bold text-orange-700"
+                            >
+                              О
+                            </span>
+                          )}
+                          {a.isPaid && (
+                            <span
+                              title="Платное обучение"
+                              className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-xs font-bold text-slate-600"
+                            >
+                              П
+                            </span>
+                          )}
                         </span>
                       </td>
                       <td className="truncate px-2.5 py-3 text-slate-600">
@@ -305,14 +313,26 @@ export function ApplicantTable({
                         {a.totalScore != null ? a.totalScore : "—"}
                       </td>
                       <td className="px-2.5 py-3 text-center">
-                        {a.consentToEnroll && (
-                          <Check className="mx-auto size-4 text-emerald-600" />
+                        {a.consentToEnroll ? (
+                          <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
+                        ) : (
+                          <span className="font-bold text-rose-400">✗</span>
                         )}
                       </td>
                       <td className="px-2.5 py-3 text-center">
-                        {a.documentsComplete && (
-                          <Check className="mx-auto size-4 text-emerald-600" />
+                        {a.documentsComplete ? (
+                          <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
+                        ) : (
+                          <span className="font-bold text-rose-400">✗</span>
                         )}
+                      </td>
+                      <td className="truncate px-2.5 py-3 text-slate-600">
+                        {a.citizenship ?? "—"}
+                      </td>
+                      <td className="truncate px-2.5 py-3 text-slate-500">
+                        {a.passportSeries || a.passportNumber
+                          ? `${a.passportSeries ?? ""} ${a.passportNumber ?? ""}`.trim()
+                          : "—"}
                       </td>
                       <td className="truncate px-2.5 py-3 text-slate-600">
                         {a.phone ?? "—"}
@@ -320,38 +340,22 @@ export function ApplicantTable({
                       <td className="truncate px-2.5 py-3 text-slate-600">
                         {a.email ?? "—"}
                       </td>
-                      <td className="truncate px-2.5 py-3 text-slate-500">
-                        {a.notes ? (
-                          <span title={a.notes}>{a.notes}</span>
-                        ) : (
-                          "—"
-                        )}
-                      </td>
                       <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
-                        {formatDate(a.createdAt, timezone)}
+                        <div className="leading-tight">
+                          <div>{formatDate(a.createdAt, timezone)}</div>
+                          <div className="text-xs text-slate-400">
+                            {formatTime(a.createdAt, timezone)}
+                          </div>
+                        </div>
                       </td>
                       <td className="px-2.5 py-3">
-                        <div className="flex items-center justify-end gap-1">
-                          <button
-                            onClick={() => onEdit(a)}
-                            title="Редактировать"
-                            className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
-                          >
-                            <Pencil className="size-4" />
-                          </button>
-                          <button
-                            onClick={() => handleDelete(a)}
-                            disabled={deletingId === a.id}
-                            title="Удалить"
-                            className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-rose-100 hover:text-rose-700"
-                          >
-                            {deletingId === a.id ? (
-                              <Loader2 className="size-4 animate-spin" />
-                            ) : (
-                              <Trash2 className="size-4" />
-                            )}
-                          </button>
-                        </div>
+                        <button
+                          onClick={() => onEdit(a)}
+                          title="Редактировать"
+                          className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+                        >
+                          <Pencil className="size-4" />
+                        </button>
                       </td>
                     </tr>
                   );

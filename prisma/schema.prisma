@@ -18,6 +18,12 @@ enum ApplicantStatus {
   withdrawn
 }
 
+// Тип документа об образовании.
+enum DocumentType {
+  diploma // диплом
+  certificate // аттестат
+}
+
 // Образовательная программа (5 программ: ИСД, ТГСВ, ЗиК, ЗиК-КИ, ЗиК-ГК).
 model Program {
   id         Int         @id @default(autoincrement())
@@ -51,16 +57,25 @@ model Applicant {
 
   consentToEnroll   Boolean @default(false) // согласие на зачисление
   documentsComplete Boolean @default(false)
+  specialQuota      Boolean @default(false) // особая квота
+  isPaid            Boolean @default(false) // платное обучение
+
+  // Документ об образовании и гражданство
+  documentType DocumentType? // диплом | аттестат
+  citizenship  String? // гражданство (Россия, Беларусь, …)
+  passportSeries String? // серия паспорта
+  passportNumber String? // номер паспорта
 
   // Результаты экзаменов
-  mathBase    Int? // оценка 2-5, в рейтинг НЕ входит
+  mathBase    Int? // оценка 2-5, в рейтинг НЕ входит (взаимоисключающа с mathProfile)
   mathProfile Float? // 0-100
   russian     Float?
   chemistry   Float?
   physics     Float?
   informatics Float?
   geography   Float?
-  totalScore  Float? // считается автоматически (среднее по заполненным, без mathBase)
+  additionalScores Float @default(0) // доп. баллы / ВИ (могут поднять total выше 300)
+  totalScore  Float? // авто: сумма топ-3 предметов (без mathBase) + additionalScores
 
   // Персональные данные
   registrationAddress String?
