@@ -1,0 +1,113 @@
+// Prisma schema для ИСУА — Информационная система учёта абитуриентов.
+// Документация: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// Статусы абитуриента.
+// applied  — подал заявление (рабочий статус)
+// withdrawn — забрал заявление (красный, согласие авто-снимается)
+enum ApplicantStatus {
+  applied
+  withdrawn
+}
+
+// Образовательная программа (5 программ: ИСД, ТГСВ, ЗиК, ЗиК-КИ, ЗиК-ГК).
+model Program {
+  id         Int         @id @default(autoincrement())
+  name       String      @unique
+  places     Int // количество бюджетных мест
+  applicants Applicant[]
+  createdAt  DateTime    @default(now())
+}
+
+// Пользователь системы (оператор приёмной комиссии).
+model User {
+  id           Int         @id @default(autoincrement())
+  email        String      @unique
+  passwordHash String // bcrypt-хеш, никогда не возвращается в API
+  username     String      @unique
+  createdAt    DateTime    @default(now())
+  lastLogin    DateTime?
+  applicants   Applicant[] @relation("CreatedBy")
+  histories    History[]   @relation("ChangedBy")
+}
+
+// Абитуриент.
+model Applicant {
+  id        Int             @id @default(autoincrement())
+  fullName  String
+  phone     String?
+  email     String?
+  programId Int
+  program   Program         @relation(fields: [programId], references: [id])
+  status    ApplicantStatus @default(applied)
+
+  consentToEnroll   Boolean @default(false) // согласие на зачисление
+  documentsComplete Boolean @default(false)
+
+  // Результаты экзаменов
+  mathBase    Int? // оценка 2-5, в рейтинг НЕ входит
+  mathProfile Float? // 0-100
+  russian     Float?
+  chemistry   Float?
+  physics     Float?
+  informatics Float?
+  geography   Float?
+  totalScore  Float? // считается автоматически (среднее по заполненным, без mathBase)
+
+  // Персональные данные
+  registrationAddress String?
+  inn                 String?
+  snils               String?
+  notes               String?
+
+  // Оптимистичная блокировка
+  version Int @default(1)
+
+  // Служебные поля
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+  createdByUserId Int
+  createdBy       User     @relation("CreatedBy", fields: [createdByUserId], references: [id])
+
+  history History[]
+  lock    Lock?
+
+  @@index([programId])
+  @@index([status])
+  @@index([totalScore])
+  @@index([createdAt])
+}
+
+// Журнал изменений: field | old | new | who | when.
+model History {
+  id              Int       @id @default(autoincrement())
+  applicantId     Int
+  applicant       Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  fieldName       String
+  oldValue        String?
+  newValue        String?
+  changedByUserId Int
+  changedBy       User      @relation("ChangedBy", fields: [changedByUserId], references: [id])
+  changedAt       DateTime  @default(now())
+
+  @@index([applicantId])
+  @@index([changedAt])
+}
+
+// Блокировка записи для совместного редактирования (heartbeat + таймаут).
+model Lock {
+  id            Int       @id @default(autoincrement())
+  applicantId   Int       @unique
+  applicant     Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  userSessionId String
+  lockedAt      DateTime  @default(now())
+  lastHeartbeat DateTime  @default(now())
+}

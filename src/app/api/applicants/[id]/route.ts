@@ -1,0 +1,188 @@
+// /api/applicants/[id]
+//   GET    — один абитуриент
+//   PUT    — обновление (history-лог, total_score, согласие, оптимистичная блокировка)
+//   DELETE — удаление
+import type { NextRequest } from "next/server";
+import type { Prisma } from "@prisma/client";
+import { prisma } from "@/lib/db";
+import { getCurrentUser } from "@/lib/auth";
+import { ok, fail, unauthorized, notFound } from "@/lib/http";
+import { updateApplicantSchema } from "@/lib/validation";
+import { calculateTotalScore, SCORE_FIELDS } from "@/lib/scoring";
+import { normalizeConsent } from "@/lib/applicant-logic";
+import { buildHistoryEntries } from "@/lib/history";
+import type { ApplicantStatus } from "@/lib/types";
+
+function parseId(raw: string): number | null {
+  const id = Number(raw);
+  return Number.isInteger(id) && id > 0 ? id : null;
+}
+
+export async function GET(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser(req);
+  if (!user) return unauthorized();
+
+  const id = parseId((await params).id);
+  if (!id) return fail("Некорректный id", 400);
+
+  const applicant = await prisma.applicant.findUnique({
+    where: { id },
+    include: { program: { select: { id: true, name: true } } },
+  });
+  if (!applicant) return notFound("Абитуриент");
+
+  return ok(applicant);
+}
+
+export async function PUT(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser(req);
+  if (!user) return unauthorized();
+
+  const id = parseId((await params).id);
+  if (!id) return fail("Некорректный id", 400);
+
+  const body = await req.json().catch(() => null);
+  const parsed = updateApplicantSchema.safeParse(body);
+  if (!parsed.success) {
+    return fail("Ошибка валидации", 422, parsed.error.flatten());
+  }
+  const data = parsed.data;
+
+  const current = await prisma.applicant.findUnique({ where: { id } });
+  if (!current) return notFound("Абитуриент");
+
+  // Оптимистичная блокировка: если клиент прислал version и она устарела → 409.
+  if (data.version !== undefined && data.version !== current.version) {
+    return fail("Данные были изменены другим пользователем", 409);
+  }
+
+  // Проверка программы, если меняется.
+  if (data.programId !== undefined && data.programId !== current.programId) {
+    const program = await prisma.program.findUnique({
+      where: { id: data.programId },
+      select: { id: true },
+    });
+    if (!program) return fail("Указанная программа не найдена", 422);
+  }
+
+  // Собираем изменения только из переданных полей.
+  const { version: _version, status: statusInput, ...rest } = data;
+  void _version;
+  const updates: Prisma.ApplicantUpdateInput = {};
+
+  // Простые поля.
+  const SIMPLE_FIELDS = [
+    "fullName",
+    "phone",
+    "email",
+    "programId",
+    "documentsComplete",
+    "mathBase",
+    "mathProfile",
+    "russian",
+    "chemistry",
+    "physics",
+    "informatics",
+    "geography",
+    "registrationAddress",
+    "inn",
+    "snils",
+    "notes",
+  ] as const;
+
+  const afterForHistory: Record<string, unknown> = {};
+  for (const f of SIMPLE_FIELDS) {
+    if (f in rest && rest[f] !== undefined) {
+      // programId как relation требует особой формы — задаём отдельно ниже.
+      if (f === "programId") continue;
+      (updates as Record<string, unknown>)[f] = rest[f];
+      afterForHistory[f] = rest[f];
+    }
+  }
+  if (rest.programId !== undefined) {
+    updates.program = { connect: { id: rest.programId } };
+    afterForHistory.programId = rest.programId;
+  }
+
+  // Статус.
+  const nextStatus = (statusInput ?? current.status) as ApplicantStatus;
+  if (statusInput !== undefined) {
+    updates.status = statusInput;
+    afterForHistory.status = statusInput;
+  }
+
+  // Пересчёт total_score, если изменился любой предметный балл.
+  const scoreTouched = SCORE_FIELDS.some((f) => f in rest);
+  if (scoreTouched) {
+    const merged = {
+      mathProfile: rest.mathProfile ?? current.mathProfile,
+      russian: rest.russian ?? current.russian,
+      chemistry: rest.chemistry ?? current.chemistry,
+      physics: rest.physics ?? current.physics,
+      informatics: rest.informatics ?? current.informatics,
+      geography: rest.geography ?? current.geography,
+    };
+    updates.totalScore = calculateTotalScore(merged);
+  }
+
+  // Согласие: нормализуем по итоговому статусу.
+  const requestedConsent =
+    rest.consentToEnroll !== undefined
+      ? Boolean(rest.consentToEnroll)
+      : current.consentToEnroll;
+  const finalConsent = normalizeConsent(nextStatus, requestedConsent);
+  if (finalConsent !== current.consentToEnroll) {
+    updates.consentToEnroll = finalConsent;
+    afterForHistory.consentToEnroll = finalConsent;
+  }
+
+  // Записи истории по изменившимся логируемым полям.
+  const historyEntries = buildHistoryEntries(
+    id,
+    user.id,
+    current as unknown as Record<string, unknown>,
+    afterForHistory,
+  );
+
+  // Инкремент version при любом изменении.
+  updates.version = { increment: 1 };
+
+  // Транзакция: обновление + лог истории.
+  const [updated] = await prisma.$transaction([
+    prisma.applicant.update({
+      where: { id },
+      data: updates,
+      include: { program: { select: { id: true, name: true } } },
+    }),
+    prisma.history.createMany({ data: historyEntries }),
+  ]);
+
+  return ok(updated);
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ id: string }> },
+) {
+  const user = await getCurrentUser(req);
+  if (!user) return unauthorized();
+
+  const id = parseId((await params).id);
+  if (!id) return fail("Некорректный id", 400);
+
+  const existing = await prisma.applicant.findUnique({
+    where: { id },
+    select: { id: true },
+  });
+  if (!existing) return notFound("Абитуриент");
+
+  // History и Lock удалятся каскадно (onDelete: Cascade).
+  await prisma.applicant.delete({ where: { id } });
+  return ok({ success: true });
+}
