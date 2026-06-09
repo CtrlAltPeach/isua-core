@@ -51,7 +51,7 @@
 
 ## Приоритет 4 — Фаза 5: синхронизация (real-time)
 
-> Механизм выбрать в начале фазы: REST-локи+polling vs Socket.io. Схема `Lock` в БД готова.
+> Механизм выбрать в начале фазы: REST-локи+polling vs Socket.io. Схема `Lock` в БД готова?
 
 - API блокировок: `POST/DELETE /api/locks/[id]`, `POST .../heartbeat`.
 - Heartbeat каждые 10 сек, таймаут 30 сек → авто-снятие.
