@@ -1,12 +1,23 @@
 // Таблица абитуриентов: поиск, фильтры, сортировка, пагинация, действия.
 "use client";
-import { useCallback, useEffect, useMemo, useRef, useState } from "react";
+import {
+  Fragment,
+  useCallback,
+  useEffect,
+  useMemo,
+  useRef,
+  useState,
+} from "react";
 import {
   Search,
   Plus,
   Pencil,
+  Clock,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
+  ChevronRight as ChevronRightSmall,
+  CalendarDays,
   ArrowUpDown,
   ArrowUp,
   ArrowDown,
@@ -54,16 +65,18 @@ const COLUMNS: {
   { key: null, label: "Телефон", thClass: "w-32" },
   { key: null, label: "Email", thClass: "w-40" },
   { key: "createdAt", label: "Дата", thClass: "w-24" },
-  { key: null, label: "", thClass: "w-12" },
+  { key: null, label: "", thClass: "w-20" },
 ];
 
 export function ApplicantTable({
   onEdit,
   onCreate,
+  onHistory,
   refreshKey,
 }: {
   onEdit: (applicant: ApplicantWithProgram) => void;
   onCreate: () => void;
+  onHistory: (applicant: ApplicantWithProgram) => void;
   refreshKey?: number;
 }) {
   const timezone = useAppStore((s) => s.timezone);
@@ -72,6 +85,10 @@ export function ApplicantTable({
   const [items, setItems] = useState<ApplicantWithProgram[]>([]);
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
+
+  // Группировка по дням (свёртываемые разделители).
+  const [groupByDay, setGroupByDay] = useState(false);
+  const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
 
   // Фильтры (локальное состояние таблицы).
   const [search, setSearch] = useState("");
@@ -160,6 +177,146 @@ export function ApplicantTable({
     );
   };
 
+  // Группировка текущей страницы записей по дате создания (в выбранной зоне).
+  const WEEKDAYS = [
+    "Воскресенье",
+    "Понедельник",
+    "Вторник",
+    "Среда",
+    "Четверг",
+    "Пятница",
+    "Суббота",
+  ];
+  const dayGroups = (() => {
+    const map = new Map<string, ApplicantWithProgram[]>();
+    for (const a of items) {
+      const key = formatDate(a.createdAt, timezone); // dd.MM.yyyy
+      if (!map.has(key)) map.set(key, []);
+      map.get(key)!.push(a);
+    }
+    return [...map.entries()].map(([date, rows]) => {
+      const wd = WEEKDAYS[new Date(rows[0].createdAt).getDay()];
+      return { date, weekday: wd, rows };
+    });
+  })();
+
+  const toggleDay = (date: string) =>
+    setCollapsedDays((prev) => {
+      const next = new Set(prev);
+      if (next.has(date)) next.delete(date);
+      else next.add(date);
+      return next;
+    });
+
+  const colCount = COLUMNS.length;
+
+  const renderRow = (a: ApplicantWithProgram) => {
+    const meta = STATUS_META[a.status as ApplicantStatus];
+    return (
+      <tr
+        key={a.id}
+        className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
+      >
+        <td className="px-2.5 py-3 font-medium text-slate-900">
+          <span className="flex items-center gap-1.5 whitespace-nowrap">
+            {a.fullName}
+            {a.mathBase != null && (
+              <span
+                title={`База математики: ${a.mathBase}`}
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-rose-100 text-xs font-bold text-rose-700"
+              >
+                Б
+              </span>
+            )}
+            {a.specialQuota && (
+              <span
+                title="Особая квота"
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-orange-100 text-xs font-bold text-orange-700"
+              >
+                О
+              </span>
+            )}
+            {a.isPaid && (
+              <span
+                title="Платное обучение"
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-xs font-bold text-slate-600"
+              >
+                П
+              </span>
+            )}
+          </span>
+        </td>
+        <td className="truncate px-2.5 py-3 text-slate-600">
+          {a.program?.name ?? "—"}
+        </td>
+        <td className="px-2.5 py-3">
+          {meta ? (
+            <Badge className={meta.badge}>{meta.label}</Badge>
+          ) : (
+            <Badge className="bg-slate-100 text-slate-500">{a.status}</Badge>
+          )}
+        </td>
+        <td className="px-2.5 py-3 text-right font-medium text-slate-900">
+          {a.totalScore != null ? a.totalScore : "—"}
+        </td>
+        <td className="px-2.5 py-3 text-center">
+          {a.consentToEnroll ? (
+            <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
+          ) : (
+            <span className="font-bold text-rose-400">✗</span>
+          )}
+        </td>
+        <td className="px-2.5 py-3 text-center">
+          {a.documentsComplete ? (
+            <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
+          ) : (
+            <span className="font-bold text-rose-400">✗</span>
+          )}
+        </td>
+        <td className="truncate px-2.5 py-3 text-slate-600">
+          {a.citizenship ?? "—"}
+        </td>
+        <td className="truncate px-2.5 py-3 text-slate-500">
+          {a.passportSeries || a.passportNumber
+            ? `${a.passportSeries ?? ""} ${a.passportNumber ?? ""}`.trim()
+            : "—"}
+        </td>
+        <td className="truncate px-2.5 py-3 text-slate-600">
+          {a.phone ?? "—"}
+        </td>
+        <td className="truncate px-2.5 py-3 text-slate-600">
+          {a.email ?? "—"}
+        </td>
+        <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
+          <div className="leading-tight">
+            <div>{formatDate(a.createdAt, timezone)}</div>
+            <div className="text-xs text-slate-400">
+              {formatTime(a.createdAt, timezone)}
+            </div>
+          </div>
+        </td>
+        <td className="px-2.5 py-3">
+          <div className="flex items-center justify-end gap-1">
+            <button
+              onClick={() => onHistory(a)}
+              title="История изменений"
+              className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+            >
+              <Clock className="size-4" />
+            </button>
+            <button
+              onClick={() => onEdit(a)}
+              title="Редактировать"
+              className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+            >
+              <Pencil className="size-4" />
+            </button>
+          </div>
+        </td>
+      </tr>
+    );
+  };
+
   return (
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
@@ -211,6 +368,15 @@ export function ApplicantTable({
             </option>
           ))}
         </Select>
+        <Button
+          variant={groupByDay ? "primary" : "secondary"}
+          size="sm"
+          onClick={() => setGroupByDay((v) => !v)}
+          title="Группировать по дням добавления"
+        >
+          <CalendarDays className="size-4" />
+          По дням
+        </Button>
       </div>
 
       {/* Таблица */}
@@ -260,106 +426,36 @@ export function ApplicantTable({
                     Ничего не найдено
                   </td>
                 </tr>
-              ) : (
-                items.map((a) => {
-                  const meta = STATUS_META[a.status as ApplicantStatus];
+              ) : groupByDay ? (
+                // Группировка по дням: заголовок-разделитель + (свёрнуто/раскрыто).
+                dayGroups.map((g) => {
+                  const collapsed = collapsedDays.has(g.date);
                   return (
-                    <tr
-                      key={a.id}
-                      className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
-                    >
-                      <td className="px-2.5 py-3 font-medium text-slate-900">
-                        <span className="flex items-center gap-1.5 whitespace-nowrap">
-                          {a.fullName}
-                          {a.mathBase != null && (
-                            <span
-                              title={`База математики: ${a.mathBase}`}
-                              className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-rose-100 text-xs font-bold text-rose-700"
-                            >
-                              Б
-                            </span>
-                          )}
-                          {a.specialQuota && (
-                            <span
-                              title="Особая квота"
-                              className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-orange-100 text-xs font-bold text-orange-700"
-                            >
-                              О
-                            </span>
-                          )}
-                          {a.isPaid && (
-                            <span
-                              title="Платное обучение"
-                              className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-xs font-bold text-slate-600"
-                            >
-                              П
-                            </span>
-                          )}
-                        </span>
-                      </td>
-                      <td className="truncate px-2.5 py-3 text-slate-600">
-                        {a.program?.name ?? "—"}
-                      </td>
-                      <td className="px-2.5 py-3">
-                        {meta ? (
-                          <Badge className={meta.badge}>{meta.label}</Badge>
-                        ) : (
-                          <Badge className="bg-slate-100 text-slate-500">
-                            {a.status}
-                          </Badge>
-                        )}
-                      </td>
-                      <td className="px-2.5 py-3 text-right font-medium text-slate-900">
-                        {a.totalScore != null ? a.totalScore : "—"}
-                      </td>
-                      <td className="px-2.5 py-3 text-center">
-                        {a.consentToEnroll ? (
-                          <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
-                        ) : (
-                          <span className="font-bold text-rose-400">✗</span>
-                        )}
-                      </td>
-                      <td className="px-2.5 py-3 text-center">
-                        {a.documentsComplete ? (
-                          <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
-                        ) : (
-                          <span className="font-bold text-rose-400">✗</span>
-                        )}
-                      </td>
-                      <td className="truncate px-2.5 py-3 text-slate-600">
-                        {a.citizenship ?? "—"}
-                      </td>
-                      <td className="truncate px-2.5 py-3 text-slate-500">
-                        {a.passportSeries || a.passportNumber
-                          ? `${a.passportSeries ?? ""} ${a.passportNumber ?? ""}`.trim()
-                          : "—"}
-                      </td>
-                      <td className="truncate px-2.5 py-3 text-slate-600">
-                        {a.phone ?? "—"}
-                      </td>
-                      <td className="truncate px-2.5 py-3 text-slate-600">
-                        {a.email ?? "—"}
-                      </td>
-                      <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
-                        <div className="leading-tight">
-                          <div>{formatDate(a.createdAt, timezone)}</div>
-                          <div className="text-xs text-slate-400">
-                            {formatTime(a.createdAt, timezone)}
-                          </div>
-                        </div>
-                      </td>
-                      <td className="px-2.5 py-3">
-                        <button
-                          onClick={() => onEdit(a)}
-                          title="Редактировать"
-                          className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+                    <Fragment key={g.date}>
+                      <tr
+                        className="cursor-pointer border-b border-slate-200 bg-slate-50 hover:bg-emerald-50"
+                        onClick={() => toggleDay(g.date)}
+                      >
+                        <td
+                          colSpan={colCount}
+                          className="px-2.5 py-2 text-sm font-semibold text-slate-700"
                         >
-                          <Pencil className="size-4" />
-                        </button>
-                      </td>
-                    </tr>
+                          <span className="inline-flex items-center gap-2">
+                            {collapsed ? (
+                              <ChevronRightSmall className="size-4 text-slate-400" />
+                            ) : (
+                              <ChevronDown className="size-4 text-slate-400" />
+                            )}
+                            {g.date} ({g.weekday}) — {g.rows.length} абитуриент(ов)
+                          </span>
+                        </td>
+                      </tr>
+                      {!collapsed && g.rows.map((a) => renderRow(a))}
+                    </Fragment>
                   );
                 })
+              ) : (
+                items.map((a) => renderRow(a))
               )}
             </tbody>
           </table>

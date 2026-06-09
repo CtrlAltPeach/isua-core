@@ -12,6 +12,7 @@ const TABS = [
   { href: "/applicants", label: "Абитуриенты" },
   { href: "/programs", label: "Программы" },
   { href: "/statuses", label: "Статусы" },
+  { href: "/manage", label: "Управление" },
 ];
 
 export function Header() {

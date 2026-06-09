@@ -13,6 +13,68 @@ export const STATUS_OPTIONS: { value: ApplicantStatus; label: string }[] = (
   Object.keys(STATUS_META) as ApplicantStatus[]
 ).map((value) => ({ value, label: STATUS_META[value].label }));
 
+// Человекочитаемые названия полей (для истории изменений).
+export const FIELD_LABELS: Record<string, string> = {
+  fullName: "ФИО",
+  phone: "Телефон",
+  email: "Email",
+  programId: "Программа",
+  status: "Статус",
+  consentToEnroll: "Согласие на зачисление",
+  documentsComplete: "Документы собраны",
+  specialQuota: "Особая квота",
+  isPaid: "Платное обучение",
+  documentType: "Документ об образовании",
+  citizenship: "Гражданство",
+  passportSeries: "Паспорт (серия)",
+  passportNumber: "Паспорт (номер)",
+  mathBase: "Математика (база)",
+  mathProfile: "Математика (профиль)",
+  russian: "Русский язык",
+  chemistry: "Химия",
+  physics: "Физика",
+  informatics: "Информатика",
+  geography: "География",
+  additionalScores: "Доп. баллы / ВИ",
+  registrationAddress: "Прописка",
+  inn: "ИНН",
+  snils: "СНИЛС",
+  notes: "Заметки",
+};
+
+export function fieldLabel(name: string): string {
+  return FIELD_LABELS[name] ?? name;
+}
+
+// Человекочитаемое значение поля истории.
+export function formatHistoryValue(
+  field: string,
+  value: string | null,
+): string {
+  if (value === null || value === "") return "—";
+  if (field === "status") {
+    return STATUS_META[value as ApplicantStatus]?.label ?? value;
+  }
+  if (field === "documentType") {
+    return value === "diploma"
+      ? "Диплом"
+      : value === "certificate"
+        ? "Аттестат"
+        : value;
+  }
+  if (
+    [
+      "consentToEnroll",
+      "documentsComplete",
+      "specialQuota",
+      "isPaid",
+    ].includes(field)
+  ) {
+    return value === "true" ? "Да" : "Нет";
+  }
+  return value;
+}
+
 // Форматирование даты в выбранной таймзоне (dd.MM.yyyy).
 export function formatDate(date: string | Date, timezone: string): string {
   try {

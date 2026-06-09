@@ -9,6 +9,10 @@ import {
   FileCheck2,
   RefreshCw,
   Loader2,
+  TrendingUp,
+  TrendingDown,
+  Wallet,
+  Scale,
 } from "lucide-react";
 import { statsApi, type DailyStats } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -145,6 +149,36 @@ export function Dashboard() {
             />
           </div>
 
+          {/* Вторая строка метрик: согласия за день, платные, ratio */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              icon={<TrendingUp className="size-6" />}
+              label="Новые согласия сегодня"
+              value={stats.consentGivenToday}
+            />
+            <MetricCard
+              icon={<TrendingDown className="size-6" />}
+              label="Забрали согласие сегодня"
+              value={stats.consentWithdrawnToday}
+            />
+            <MetricCard
+              icon={<Wallet className="size-6" />}
+              label="Платные абитуриенты"
+              value={stats.withPaid}
+              hint={
+                stats.totalApplicants > 0
+                  ? `${Math.round((stats.withPaid / stats.totalApplicants) * 100)}% от всех`
+                  : undefined
+              }
+            />
+            <MetricCard
+              icon={<Scale className="size-6" />}
+              label="Заявлений на место"
+              value={stats.applicationsPerPlace?.toFixed(2) ?? "—"}
+              hint={`${stats.totalApplications} заявл. / ${stats.totalPlaces} мест · согласий ${stats.consentPerApplication}%`}
+            />
+          </div>
+
           {/* Таблица конкурса по программам */}
           <Card className="overflow-hidden">
             <div className="border-b border-slate-200 px-5 py-3">
@@ -164,6 +198,7 @@ export function Dashboard() {
                     <th className="px-5 py-2.5 text-right font-medium">Ср. балл</th>
                     <th className="px-5 py-2.5 text-right font-medium">Согласия</th>
                     <th className="px-5 py-2.5 text-right font-medium">Документы</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Платные</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -210,6 +245,9 @@ export function Dashboard() {
                       </td>
                       <td className="px-5 py-2.5 text-right text-slate-600">
                         {p.withDocuments}
+                      </td>
+                      <td className="px-5 py-2.5 text-right text-slate-600">
+                        {p.withPaid}
                       </td>
                     </tr>
                   ))}

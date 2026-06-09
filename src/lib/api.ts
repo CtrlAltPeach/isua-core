@@ -97,6 +97,11 @@ export const applicantsApi = {
     }),
   remove: (id: number) =>
     request<{ success: boolean }>(`/applicants/${id}`, { method: "DELETE" }),
+  bulkDelete: (ids: number[]) =>
+    request<{ deleted: number }>("/applicants/bulk-delete", {
+      method: "POST",
+      body: JSON.stringify({ ids }),
+    }),
   history: (id: number) =>
     request<HistoryEntry[]>(`/applicants/${id}/history`),
 };
@@ -112,6 +117,18 @@ export interface ProgramSummary {
 
 export const programsApi = {
   list: () => request<ProgramSummary[]>("/programs"),
+  create: (data: { name: string; places: number }) =>
+    request<{ id: number; name: string; places: number }>("/programs", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: number, data: { name?: string; places?: number }) =>
+    request<{ id: number; name: string; places: number }>(`/programs/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  remove: (id: number) =>
+    request<{ success: boolean }>(`/programs/${id}`, { method: "DELETE" }),
 };
 
 // --- Stats ---
@@ -123,6 +140,7 @@ export interface ProgramStatRow {
   avgScore: number | null;
   withConsent: number;
   withDocuments: number;
+  withPaid: number;
   newToday: number;
   consentFillPercent: number;
 }
@@ -136,6 +154,13 @@ export interface DailyStats {
   withdrawn: number;
   withConsent: number;
   withDocuments: number;
+  withPaid: number;
+  consentGivenToday: number;
+  consentWithdrawnToday: number;
+  totalPlaces: number;
+  totalApplications: number;
+  applicationsPerPlace: number | null;
+  consentPerApplication: number;
   byProgram: ProgramStatRow[];
 }
 

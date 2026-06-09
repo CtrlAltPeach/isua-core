@@ -3,6 +3,18 @@ import { z } from "zod";
 
 export const APPLICANT_STATUSES = ["applied", "withdrawn"] as const;
 
+// --- Программа ---
+export const programSchema = z.object({
+  name: z.string().min(1, "Название обязательно").max(100),
+  places: z.coerce.number().int().min(0, "Мест не может быть меньше 0"),
+});
+export const updateProgramSchema = programSchema.partial();
+
+// --- Массовое удаление ---
+export const bulkDeleteSchema = z.object({
+  ids: z.array(z.coerce.number().int().positive()).min(1, "Не выбрано ни одного"),
+});
+
 // --- Авторизация ---
 export const registerSchema = z.object({
   email: z.string().email("Некорректный email"),
@@ -16,11 +28,16 @@ export const loginSchema = z.object({
 });
 
 // --- Абитуриент ---
-// Балл — целое 0-100; принимаем число или пустую строку/undefined → null.
-const scoreField = z
-  .union([z.coerce.number().int("Балл — целое число").min(0).max(100), z.literal(""), z.null()])
-  .optional()
-  .transform((v) => (v === "" || v === undefined ? null : (v as number)));
+// Пустую строку/null/undefined приводим к null ДО парсинга числа.
+// Иначе z.coerce.number() превратил бы "" и null в 0 (Number("")===0).
+const emptyToNull = (v: unknown): unknown =>
+  v === "" || v === null || v === undefined ? null : v;
+
+// Балл — целое 0-100, либо null.
+const scoreField = z.preprocess(
+  emptyToNull,
+  z.coerce.number().int("Балл — целое число").min(0).max(100).nullable(),
+);
 
 const optionalString = z
   .union([z.string(), z.null()])
@@ -48,10 +65,10 @@ const applicantBase = {
   citizenship: optionalString,
   passportSeries: optionalString,
   passportNumber: optionalString,
-  mathBase: z
-    .union([z.coerce.number().int().min(2).max(5), z.literal(""), z.null()])
-    .optional()
-    .transform((v) => (v === "" || v === undefined ? null : (v as number))),
+  mathBase: z.preprocess(
+    emptyToNull,
+    z.coerce.number().int().min(2).max(5).nullable(),
+  ),
   mathProfile: scoreField,
   russian: scoreField,
   chemistry: scoreField,
@@ -59,10 +76,11 @@ const applicantBase = {
   informatics: scoreField,
   geography: scoreField,
   // Доп. баллы / ВИ: целое ≥0, без верхней границы (может поднять итог >300).
-  additionalScores: z
-    .union([z.coerce.number().int().min(0), z.literal(""), z.null()])
-    .optional()
-    .transform((v) => (v === "" || v === undefined || v === null ? 0 : (v as number))),
+  // Пусто/null → 0.
+  additionalScores: z.preprocess(
+    (v) => (v === "" || v === null || v === undefined ? 0 : v),
+    z.coerce.number().int().min(0),
+  ),
   registrationAddress: optionalString,
   inn: optionalString,
   snils: optionalString,

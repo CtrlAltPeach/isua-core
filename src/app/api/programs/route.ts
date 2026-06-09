@@ -1,8 +1,9 @@
-// GET /api/programs — список программ с количеством абитуриентов и конкурсом.
+// /api/programs — GET список, POST создание.
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
-import { ok, unauthorized } from "@/lib/http";
+import { ok, fail, unauthorized } from "@/lib/http";
+import { programSchema } from "@/lib/validation";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
@@ -26,4 +27,24 @@ export async function GET(req: NextRequest) {
   }));
 
   return ok(result);
+}
+
+export async function POST(req: NextRequest) {
+  const user = await getCurrentUser(req);
+  if (!user) return unauthorized();
+
+  const body = await req.json().catch(() => null);
+  const parsed = programSchema.safeParse(body);
+  if (!parsed.success) {
+    return fail("Ошибка валидации", 422, parsed.error.flatten());
+  }
+
+  const existing = await prisma.program.findUnique({
+    where: { name: parsed.data.name },
+    select: { id: true },
+  });
+  if (existing) return fail("Программа с таким названием уже есть", 409);
+
+  const created = await prisma.program.create({ data: parsed.data });
+  return ok(created, 201);
 }
