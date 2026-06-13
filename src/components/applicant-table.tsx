@@ -55,9 +55,8 @@ const COLUMNS: {
   align?: ColAlign;
   thClass?: string;
 }[] = [
-  // ФИО — без явной ширины: в table-fixed забирает весь остаток после
-  // фиксированных колонок (растягивается на широком экране).
-  { key: "fullName", label: "ФИО" },
+  // ФИО — фиксированная ширина (не сжимается/растягивается с окном).
+  { key: "fullName", label: "ФИО", thClass: "w-72" },
   { key: null, label: "Программа", thClass: "w-24" },
   { key: "status", label: "Статус", thClass: "w-28" },
   { key: "totalScore", label: "Балл", align: "right", thClass: "w-16" },
@@ -68,7 +67,11 @@ const COLUMNS: {
   { key: null, label: "Паспорт", thClass: "w-24" },
   { key: null, label: "Телефон", thClass: "w-28" },
   { key: null, label: "Email", thClass: "w-36" },
+  // Распорка: забирает остаток ширины на широком экране, держит остальные
+  // колонки слева (включая «Историю»), чтобы кнопка не уезжала при сжатии.
+  { key: null, label: "", thClass: "w-auto" },
   { key: "createdAt", label: "Дата", thClass: "w-20" },
+  // Колонка действий — фиксированная узкая ширина.
   { key: null, label: "", thClass: "w-12" },
 ];
 
@@ -324,6 +327,8 @@ export function ApplicantTable({
         <td className="truncate px-2.5 py-3 text-slate-600">
           {a.email ?? "—"}
         </td>
+        {/* Распорка (w-auto) */}
+        <td className="px-2.5 py-3" />
         <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
           <div className="leading-tight">
             <div>{formatDate(a.createdAt, timezone)}</div>
@@ -332,19 +337,17 @@ export function ApplicantTable({
             </div>
           </div>
         </td>
-        <td className="px-2.5 py-3">
-          <div className="flex items-center justify-end">
-            <button
-              onClick={(e) => {
-                e.stopPropagation();
-                onHistory(a);
-              }}
-              title="История изменений"
-              className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
-            >
-              <Clock className="size-4" />
-            </button>
-          </div>
+        <td className="px-1 py-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onHistory(a);
+            }}
+            title="История изменений"
+            className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+          >
+            <Clock className="size-4" />
+          </button>
         </td>
       </tr>
     );

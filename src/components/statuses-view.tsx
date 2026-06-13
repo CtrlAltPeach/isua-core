@@ -1,7 +1,7 @@
 // Вкладка «Статусы»: Kanban-доска (2 колонки) + редактирование по клику.
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Loader2, Check, Pencil } from "lucide-react";
+import { Loader2, Check } from "lucide-react";
 import { applicantsApi } from "@/lib/api";
 import type { ApplicantWithProgram, ApplicantStatus } from "@/lib/types";
 import { ApplicantFormModal } from "@/components/applicant-form-modal";
@@ -129,18 +129,8 @@ function StatusCard({
       onClick={onEdit}
       className="cursor-pointer p-3 transition-shadow hover:shadow-md"
     >
-      <div className="mb-1 flex items-start justify-between gap-2">
+      <div className="mb-1">
         <span className="font-medium text-slate-900">{a.fullName}</span>
-        <button
-          onClick={(e) => {
-            e.stopPropagation();
-            onEdit();
-          }}
-          title="Редактировать"
-          className="inline-flex size-7 shrink-0 items-center justify-center rounded-md text-slate-400 hover:bg-emerald-100 hover:text-emerald-700"
-        >
-          <Pencil className="size-3.5" />
-        </button>
       </div>
       <div className="flex items-center justify-between text-sm text-slate-500">
         <span>{a.program?.name ?? "—"}</span>
