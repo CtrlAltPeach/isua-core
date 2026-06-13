@@ -54,13 +54,19 @@ export function fieldLabel(name: string): string {
 }
 
 // Человекочитаемое значение поля истории.
+// programNames — карта id→название программы (для подмены programId на имя).
 export function formatHistoryValue(
   field: string,
   value: string | null,
+  programNames?: Map<number, string>,
 ): string {
   if (value === null || value === "") return "—";
   if (field === "status") {
     return STATUS_FULL_LABEL[value as ApplicantStatus] ?? value;
+  }
+  if (field === "programId") {
+    const id = Number(value);
+    return programNames?.get(id) ?? `Программа #${value}`;
   }
   if (field === "documentType") {
     return value === "diploma"

@@ -1,8 +1,8 @@
 // Модальное окно истории изменений абитуриента.
 "use client";
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Loader2, ArrowRight } from "lucide-react";
-import { applicantsApi } from "@/lib/api";
+import { applicantsApi, programsApi, type ProgramSummary } from "@/lib/api";
 import type { HistoryEntry } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import { fieldLabel, formatHistoryValue, formatDateTime } from "@/lib/applicant-ui";
@@ -22,6 +22,19 @@ export function HistoryModal({
   const timezone = useAppStore((s) => s.timezone);
   const [entries, setEntries] = useState<HistoryEntry[]>([]);
   const [loading, setLoading] = useState(false);
+  const [programs, setPrograms] = useState<ProgramSummary[]>([]);
+
+  // Карта id→название программы для подмены programId в истории.
+  const programNames = useMemo(
+    () => new Map(programs.map((p) => [p.id, p.name])),
+    [programs],
+  );
+
+  // Список программ загружаем один раз при первом открытии.
+  useEffect(() => {
+    if (!open || programs.length > 0) return;
+    programsApi.list().then(setPrograms).catch(() => {});
+  }, [open, programs.length]);
 
   useEffect(() => {
     if (!open || applicantId == null) return;
@@ -75,11 +88,11 @@ export function HistoryModal({
                   <td className="py-2 pr-3">
                     <span className="inline-flex items-center gap-1.5">
                       <span className="text-slate-400 line-through">
-                        {formatHistoryValue(e.fieldName, e.oldValue)}
+                        {formatHistoryValue(e.fieldName, e.oldValue, programNames)}
                       </span>
                       <ArrowRight className="size-3.5 text-slate-400" />
                       <span className="font-medium text-emerald-700">
-                        {formatHistoryValue(e.fieldName, e.newValue)}
+                        {formatHistoryValue(e.fieldName, e.newValue, programNames)}
                       </span>
                     </span>
                   </td>

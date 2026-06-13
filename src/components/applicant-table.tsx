@@ -141,19 +141,26 @@ export function ApplicantTable({
     [debouncedSearch, status, programId, sortBy, order, page, limit],
   );
 
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      const res = await applicantsApi.list(filters);
-      setItems(res.items);
-      setTotal(res.total);
-    } catch {
-      setItems([]);
-      setTotal(0);
-    } finally {
-      setLoading(false);
-    }
-  }, [filters]);
+  // silent=true — фоновое обновление (polling): не показываем спиннер и не
+  // сбрасываем строки при ошибке, чтобы не мигать таблицей под пользователем.
+  const load = useCallback(
+    async (silent = false) => {
+      if (!silent) setLoading(true);
+      try {
+        const res = await applicantsApi.list(filters);
+        setItems(res.items);
+        setTotal(res.total);
+      } catch {
+        if (!silent) {
+          setItems([]);
+          setTotal(0);
+        }
+      } finally {
+        if (!silent) setLoading(false);
+      }
+    },
+    [filters],
+  );
 
   // Загрузка списка. setLoading — часть паттерна «fetch в эффекте»,
   // данные приходят из внешней системы (API).
@@ -161,6 +168,13 @@ export function ApplicantTable({
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load, refreshKey]);
+
+  // Авто-обновление (7F): тихий polling раз в 20 сек, чтобы видеть изменения
+  // других пользователей. Не трогает спиннер и не сбивает ввод поиска.
+  useEffect(() => {
+    const id = setInterval(() => void load(true), 20_000);
+    return () => clearInterval(id);
+  }, [load]);
 
   const toggleSort = (key: SortKey) => {
     if (sortBy === key) {

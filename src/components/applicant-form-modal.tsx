@@ -1,4 +1,5 @@
-// Модальная форма создания/редактирования абитуриента (с вкладками).
+// Модальная форма создания/редактирования абитуриента.
+// Секции идут вертикально одна за другой (без вкладок), модал скроллится.
 // Live-пересчёт балла (топ-3 + ВИ), math база/профиль взаимоисключающи,
 // логика согласия, оптимистичная блокировка.
 "use client";
@@ -55,15 +56,6 @@ const SCORE_LABELS: { name: keyof FormValues; label: string }[] = [
   { name: "geography", label: "География" },
 ];
 
-const TABS = [
-  "Основное",
-  "Документы и согласие",
-  "Баллы экзаменов",
-  "Контакты",
-  "Персональное",
-] as const;
-type TabName = (typeof TABS)[number];
-
 function toStr(v: number | null | undefined): string {
   return v == null ? "" : String(v);
 }
@@ -107,6 +99,24 @@ function defaultsFrom(a: ApplicantWithProgram | null): FormValues {
 const noWheel = (e: React.WheelEvent<HTMLInputElement>) =>
   (e.target as HTMLInputElement).blur();
 
+// Секция формы: заголовок-разделитель + содержимое.
+function Section({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <section className="space-y-4">
+      <h3 className="border-b border-slate-200 pb-1.5 text-sm font-semibold tracking-wide text-slate-500 uppercase">
+        {title}
+      </h3>
+      {children}
+    </section>
+  );
+}
+
 export function ApplicantFormModal({
   open,
   applicant,
@@ -121,7 +131,6 @@ export function ApplicantFormModal({
   const isEdit = !!applicant;
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
-  const [tab, setTab] = useState<TabName>("Основное");
 
   const {
     register,
@@ -143,7 +152,6 @@ export function ApplicantFormModal({
     if (open) {
       reset(defaultsFrom(applicant));
       setServerError(null);
-      setTab("Основное");
     }
   }, [open, applicant, reset]);
 
@@ -223,17 +231,14 @@ export function ApplicantFormModal({
     setServerError(null);
     if (!v.fullName.trim()) {
       setServerError("ФИО обязательно");
-      setTab("Основное");
       return;
     }
     if (!v.programId) {
       setServerError("Выберите программу");
-      setTab("Основное");
       return;
     }
     if (v.email.trim() && !EMAIL_RE.test(v.email.trim())) {
       setServerError("Некорректный email");
-      setTab("Контакты");
       return;
     }
 
@@ -350,25 +355,6 @@ export function ApplicantFormModal({
         </>
       }
     >
-      {/* Вкладки */}
-      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
-        {TABS.map((t) => (
-          <button
-            key={t}
-            type="button"
-            onClick={() => setTab(t)}
-            className={cn(
-              "-mb-px whitespace-nowrap border-b-2 px-2.5 py-2 text-sm font-medium transition-colors",
-              tab === t
-                ? "border-emerald-600 text-emerald-700"
-                : "border-transparent text-slate-500 hover:text-slate-800",
-            )}
-          >
-            {t}
-          </button>
-        ))}
-      </div>
-
       {lockedBy && (
         <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
           🔒 Сейчас редактирует: <b>{lockedBy}</b>. Сохранение может перезаписать
@@ -376,9 +362,9 @@ export function ApplicantFormModal({
         </div>
       )}
 
-      <form id="applicant-form" onSubmit={onSubmit} className="space-y-5">
+      <form id="applicant-form" onSubmit={onSubmit} className="space-y-6">
         {/* === Основное === */}
-        {tab === "Основное" && (
+        <Section title="Основное">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div className="sm:col-span-2">
               <Label htmlFor="fullName">ФИО *</Label>
@@ -406,10 +392,10 @@ export function ApplicantFormModal({
               </Select>
             </div>
           </div>
-        )}
+        </Section>
 
         {/* === Документы и согласие === */}
-        {tab === "Документы и согласие" && (
+        <Section title="Документы и согласие">
           <div className="space-y-4">
             <div className="flex flex-wrap gap-6">
               {checkbox("documentsComplete", "Документы собраны")}
@@ -461,10 +447,10 @@ export function ApplicantFormModal({
               </div>
             </div>
           </div>
-        )}
+        </Section>
 
         {/* === Баллы экзаменов === */}
-        {tab === "Баллы экзаменов" && (
+        <Section title="Баллы экзаменов">
           <div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
@@ -533,10 +519,10 @@ export function ApplicantFormModal({
               </div>
             )}
           </div>
-        )}
+        </Section>
 
         {/* === Контакты === */}
-        {tab === "Контакты" && (
+        <Section title="Контакты">
           <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
             <div>
               <Label htmlFor="phone">Телефон</Label>
@@ -547,10 +533,10 @@ export function ApplicantFormModal({
               <Input id="email" type="email" {...register("email")} />
             </div>
           </div>
-        )}
+        </Section>
 
         {/* === Персональное === */}
-        {tab === "Персональное" && (
+        <Section title="Персональное">
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div className="sm:col-span-3">
@@ -579,7 +565,7 @@ export function ApplicantFormModal({
               />
             </div>
           </div>
-        )}
+        </Section>
 
         {serverError && (
           <p className="rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">

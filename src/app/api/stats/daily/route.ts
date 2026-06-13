@@ -45,13 +45,16 @@ export async function GET(req: NextRequest) {
     prisma.applicant.count({
       where: { createdAt: { gte: dayStart, lt: dayEnd } },
     }),
-    // Изменения согласия за день — из истории.
+    // Изменения согласия за день — из истории (для НЕТТО-итога за день).
+    // Берём applicantId + значения + время, чтобы по каждому абитуриенту
+    // сравнить состояние на начало дня с состоянием на конец дня.
     prisma.history.findMany({
       where: {
         fieldName: "consentToEnroll",
         changedAt: { gte: dayStart, lt: dayEnd },
       },
-      select: { newValue: true },
+      select: { applicantId: true, oldValue: true, newValue: true, changedAt: true },
+      orderBy: { changedAt: "asc" },
     }),
     prisma.program.findMany({
       orderBy: { id: "asc" },
@@ -74,13 +77,32 @@ export async function GET(req: NextRequest) {
   const statusCount = (s: string) =>
     byStatus.find((g) => g.status === s)?._count._all ?? 0;
 
-  // Новые/снятые согласия сегодня (по журналу изменений).
-  const consentGivenToday = consentChangesToday.filter(
-    (h) => h.newValue === "true",
-  ).length;
-  const consentWithdrawnToday = consentChangesToday.filter(
-    (h) => h.newValue === "false",
-  ).length;
+  // Новые/снятые согласия сегодня — НЕТТО за день, а не сумма переключений.
+  // По каждому абитуриенту: состояние на начало дня (oldValue первого изменения)
+  // против состояния на конец дня (newValue последнего изменения).
+  // Записи уже отсортированы по changedAt asc.
+  const consentByApplicant = new Map<
+    number,
+    { first: string | null; last: string | null }
+  >();
+  for (const h of consentChangesToday) {
+    const cur = consentByApplicant.get(h.applicantId);
+    if (cur) {
+      cur.last = h.newValue; // более позднее изменение перетирает «конец дня»
+    } else {
+      consentByApplicant.set(h.applicantId, {
+        first: h.oldValue, // состояние ДО первого изменения за день
+        last: h.newValue,
+      });
+    }
+  }
+  let consentGivenToday = 0;
+  let consentWithdrawnToday = 0;
+  for (const { first, last } of consentByApplicant.values()) {
+    if (first === last) continue; // туда-сюда за день → нулевое движение
+    if (last === "true") consentGivenToday++;
+    else if (last === "false") consentWithdrawnToday++;
+  }
 
   const totalPlaces = programs.reduce((s, p) => s + p.places, 0);
   const totalApplications = programs.reduce(
