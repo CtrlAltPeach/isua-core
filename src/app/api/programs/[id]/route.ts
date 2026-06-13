@@ -1,5 +1,6 @@
-// /api/programs/[id] — PUT (переименование/места), DELETE.
+// /api/programs/[id] — PUT (переименование/места/пороги), DELETE.
 import type { NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ok, fail, unauthorized, notFound } from "@/lib/http";
@@ -38,10 +39,14 @@ export async function PUT(
     if (dup) return fail("Программа с таким названием уже есть", 409);
   }
 
-  const updated = await prisma.program.update({
-    where: { id },
-    data: parsed.data,
-  });
+  // Json-поле: null нужно передавать как Prisma.JsonNull.
+  const { minScores, ...rest } = parsed.data;
+  const data: Prisma.ProgramUpdateInput = { ...rest };
+  if (minScores !== undefined) {
+    data.minScores = minScores === null ? Prisma.JsonNull : minScores;
+  }
+
+  const updated = await prisma.program.update({ where: { id }, data });
   return ok(updated);
 }
 

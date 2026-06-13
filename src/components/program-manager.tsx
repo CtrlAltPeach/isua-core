@@ -1,13 +1,16 @@
 // Управление программами: таблица + добавление/редактирование/удаление.
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react";
+import { Plus, Pencil, Trash2, Loader2, Check, X, Target } from "lucide-react";
 import { programsApi, ApiError, type ProgramSummary } from "@/lib/api";
-import { Button, Input, Card } from "@/components/ui";
+import { Button, Input, Card, Modal, Label } from "@/components/ui";
+import { SUBJECT_LABELS } from "@/lib/thresholds";
+import { SCORE_FIELDS } from "@/lib/scoring";
 
 export function ProgramManager() {
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [loading, setLoading] = useState(true);
+  const [thresholdFor, setThresholdFor] = useState<ProgramSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
 
   // Строка в режиме редактирования (id) или создания (id = "new").
@@ -157,6 +160,13 @@ export function ProgramManager() {
                     <td className="px-5 py-2.5">
                       <div className="flex items-center justify-end gap-1">
                         <button
+                          onClick={() => setThresholdFor(p)}
+                          title="Минимальные баллы"
+                          className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+                        >
+                          <Target className="size-4" />
+                        </button>
+                        <button
                           onClick={() => startEdit(p)}
                           title="Редактировать"
                           className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
@@ -179,7 +189,112 @@ export function ProgramManager() {
           )}
         </tbody>
       </table>
+
+      {thresholdFor && (
+        <ThresholdModal
+          program={thresholdFor}
+          onClose={() => setThresholdFor(null)}
+          onSaved={() => {
+            setThresholdFor(null);
+            void load();
+          }}
+        />
+      )}
     </Card>
+  );
+}
+
+// Модал редактирования минимальных баллов программы.
+function ThresholdModal({
+  program,
+  onClose,
+  onSaved,
+}: {
+  program: ProgramSummary;
+  onClose: () => void;
+  onSaved: () => void;
+}) {
+  const [values, setValues] = useState<Record<string, string>>(() => {
+    const init: Record<string, string> = {};
+    for (const f of SCORE_FIELDS) {
+      const v = program.minScores?.[f];
+      init[f] = typeof v === "number" ? String(v) : "";
+    }
+    return init;
+  });
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const save = async () => {
+    setBusy(true);
+    setError(null);
+    try {
+      const minScores: Record<string, number> = {};
+      for (const f of SCORE_FIELDS) {
+        const raw = values[f].trim();
+        if (raw !== "") {
+          const n = Number(raw);
+          if (!Number.isNaN(n)) minScores[f] = Math.round(n);
+        }
+      }
+      await programsApi.update(program.id, {
+        minScores: Object.keys(minScores).length > 0 ? minScores : null,
+      });
+      onSaved();
+    } catch (e) {
+      setError(e instanceof ApiError ? e.message : "Ошибка сохранения");
+    } finally {
+      setBusy(false);
+    }
+  };
+
+  return (
+    <Modal
+      open
+      onClose={onClose}
+      title={`Минимальные баллы: ${program.name}`}
+      footer={
+        <>
+          <Button variant="secondary" onClick={onClose} disabled={busy}>
+            Отмена
+          </Button>
+          <Button onClick={save} disabled={busy}>
+            {busy && <Loader2 className="size-4 animate-spin" />}
+            Сохранить
+          </Button>
+        </>
+      }
+    >
+      <p className="mb-4 text-sm text-slate-500">
+        Порог по каждому предмету (0–100). Пустое поле — порог не задан. Балл ниже
+        порога подсветится предупреждением, но не блокирует сохранение.
+      </p>
+      <div className="grid grid-cols-1 gap-4 sm:grid-cols-2">
+        {SCORE_FIELDS.map((f) => (
+          <div key={f}>
+            <Label htmlFor={`min-${f}`}>{SUBJECT_LABELS[f]}</Label>
+            <Input
+              id={`min-${f}`}
+              type="number"
+              min={0}
+              max={100}
+              step="1"
+              placeholder="—"
+              value={values[f]}
+              onChange={(e) =>
+                setValues((prev) => ({ ...prev, [f]: e.target.value }))
+              }
+              onWheel={(e) => (e.target as HTMLInputElement).blur()}
+            />
+          </div>
+        ))}
+      </div>
+      {error && (
+        <p className="mt-3 rounded-md bg-rose-50 px-3 py-2 text-sm text-rose-700">
+          {error}
+        </p>
+      )}
+    </Modal>
   );
 }
 

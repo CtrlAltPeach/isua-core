@@ -9,7 +9,9 @@ import { applicantsApi, programsApi, type ProgramSummary } from "@/lib/api";
 import { ApiError } from "@/lib/api";
 import type { ApplicantWithProgram, ApplicantStatus } from "@/lib/types";
 import { calculateTotalScore } from "@/lib/scoring";
+import { failingSubjects, SUBJECT_LABELS } from "@/lib/thresholds";
 import { STATUS_OPTIONS } from "@/lib/applicant-ui";
+import { useLock } from "@/hooks/useLock";
 import { Modal, Button, Input, Label, Select } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -130,6 +132,12 @@ export function ApplicantFormModal({
     formState: { isSubmitting },
   } = useForm<FormValues>({ defaultValues: defaultsFrom(applicant) });
 
+  // Блокировка записи на время редактирования существующего абитуриента.
+  const { lockedBy } = useLock(
+    isEdit && applicant ? applicant.id : null,
+    open && isEdit,
+  );
+
   // Перезагружаем значения при открытии/смене записи.
   useEffect(() => {
     if (open) {
@@ -173,6 +181,32 @@ export function ApplicantFormModal({
       watched.additionalScores,
     ],
   );
+
+  // Предметы ниже минимального порога выбранной программы.
+  const failing = useMemo(() => {
+    const prog = programs.find((p) => String(p.id) === watched.programId);
+    if (!prog?.minScores) return [];
+    return failingSubjects(
+      {
+        mathProfile: numOrNull(watched.mathProfile),
+        russian: numOrNull(watched.russian),
+        chemistry: numOrNull(watched.chemistry),
+        physics: numOrNull(watched.physics),
+        informatics: numOrNull(watched.informatics),
+        geography: numOrNull(watched.geography),
+      },
+      prog.minScores,
+    );
+  }, [
+    programs,
+    watched.programId,
+    watched.mathProfile,
+    watched.russian,
+    watched.chemistry,
+    watched.physics,
+    watched.informatics,
+    watched.geography,
+  ]);
 
   // Согласие доступно, пока статус не "забрал заявление".
   const status = watched.status;
@@ -335,6 +369,13 @@ export function ApplicantFormModal({
         ))}
       </div>
 
+      {lockedBy && (
+        <div className="mb-4 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+          🔒 Сейчас редактирует: <b>{lockedBy}</b>. Сохранение может перезаписать
+          его изменения.
+        </div>
+      )}
+
       <form id="applicant-form" onSubmit={onSubmit} className="space-y-5">
         {/* === Основное === */}
         {tab === "Основное" && (
@@ -479,6 +520,18 @@ export function ApplicantFormModal({
                 {liveTotal != null && liveTotal > 300 && " · переполнение >300"}
               </span>
             </div>
+
+            {failing.length > 0 && (
+              <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
+                <span className="font-semibold">⚠ Ниже минимального порога:</span>{" "}
+                {failing
+                  .map(
+                    (f) =>
+                      `${SUBJECT_LABELS[f.field]} ${f.value} (мин. ${f.min})`,
+                  )
+                  .join(", ")}
+              </div>
+            )}
           </div>
         )}
 

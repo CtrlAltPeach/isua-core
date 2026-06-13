@@ -107,28 +107,56 @@ export const applicantsApi = {
 };
 
 // --- Programs ---
+export type MinScores = Record<string, number>;
+
 export interface ProgramSummary {
   id: number;
   name: string;
   places: number;
+  minScores: MinScores;
   applicantCount: number;
   competition: number | null;
 }
 
+interface ProgramInput {
+  name?: string;
+  places?: number;
+  minScores?: MinScores | null;
+}
+
 export const programsApi = {
   list: () => request<ProgramSummary[]>("/programs"),
-  create: (data: { name: string; places: number }) =>
-    request<{ id: number; name: string; places: number }>("/programs", {
+  create: (data: ProgramInput) =>
+    request<ProgramSummary>("/programs", {
       method: "POST",
       body: JSON.stringify(data),
     }),
-  update: (id: number, data: { name?: string; places?: number }) =>
-    request<{ id: number; name: string; places: number }>(`/programs/${id}`, {
+  update: (id: number, data: ProgramInput) =>
+    request<ProgramSummary>(`/programs/${id}`, {
       method: "PUT",
       body: JSON.stringify(data),
     }),
   remove: (id: number) =>
     request<{ success: boolean }>(`/programs/${id}`, { method: "DELETE" }),
+};
+
+// --- Locks ---
+export const locksApi = {
+  acquire: (applicantId: number, userSessionId: string) =>
+    request<{ locked: boolean; lockedBy?: string }>(`/locks/${applicantId}`, {
+      method: "POST",
+      body: JSON.stringify({ userSessionId }),
+    }),
+  heartbeat: (applicantId: number, userSessionId: string) =>
+    request<{ ok: boolean }>(`/locks/${applicantId}/heartbeat`, {
+      method: "POST",
+      body: JSON.stringify({ userSessionId }),
+    }),
+  release: (applicantId: number, userSessionId: string) =>
+    request<{ unlocked: boolean }>(
+      `/locks/${applicantId}?userSessionId=${encodeURIComponent(userSessionId)}`,
+      { method: "DELETE" },
+    ),
 };
 
 // --- Stats ---

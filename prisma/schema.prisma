@@ -29,6 +29,9 @@ model Program {
   id         Int         @id @default(autoincrement())
   name       String      @unique
   places     Int // количество бюджетных мест
+  // Минимальные баллы по предметам, напр. {"russian":36,"mathProfile":27,...}.
+  // null/отсутствие ключа = порог не задан.
+  minScores  Json?
   applicants Applicant[]
   createdAt  DateTime    @default(now())
 }
@@ -119,10 +122,11 @@ model History {
 
 // Блокировка записи для совместного редактирования (heartbeat + таймаут).
 model Lock {
-  id            Int       @id @default(autoincrement())
-  applicantId   Int       @unique
-  applicant     Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
-  userSessionId String
-  lockedAt      DateTime  @default(now())
-  lastHeartbeat DateTime  @default(now())
+  id               Int       @id @default(autoincrement())
+  applicantId      Int       @unique
+  applicant        Applicant @relation(fields: [applicantId], references: [id], onDelete: Cascade)
+  userSessionId    String // идентификатор сессии-владельца
+  lockedByUsername String // имя владельца (для отображения «Редактирует: …»)
+  lockedAt         DateTime  @default(now())
+  lastHeartbeat    DateTime  @default(now())
 }

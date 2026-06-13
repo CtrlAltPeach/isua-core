@@ -22,6 +22,7 @@ import {
   ArrowUp,
   ArrowDown,
   Check,
+  AlertTriangle,
   Loader2,
 } from "lucide-react";
 import {
@@ -38,6 +39,7 @@ import {
   formatDate,
   formatTime,
 } from "@/lib/applicant-ui";
+import { failingSubjects } from "@/lib/thresholds";
 import { Button, Input, Select, Badge, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -212,6 +214,11 @@ export function ApplicantTable({
 
   const renderRow = (a: ApplicantWithProgram) => {
     const meta = STATUS_META[a.status as ApplicantStatus];
+    // Предметы ниже порога программы (для значка-предупреждения у балла).
+    const prog = programs.find((p) => p.id === a.programId);
+    const failing = prog?.minScores
+      ? failingSubjects(a, prog.minScores)
+      : [];
     return (
       <tr
         key={a.id}
@@ -269,7 +276,19 @@ export function ApplicantTable({
           )}
         </td>
         <td className="px-2.5 py-3 text-right font-medium text-slate-900">
-          {a.totalScore != null ? a.totalScore : "—"}
+          <span className="inline-flex items-center justify-end gap-1">
+            {failing.length > 0 && (
+              <span
+                className="inline-flex"
+                title={`Ниже порога: ${failing
+                  .map((f) => `${f.field} ${f.value}<${f.min}`)
+                  .join(", ")}`}
+              >
+                <AlertTriangle className="size-3.5 text-amber-500" />
+              </span>
+            )}
+            {a.totalScore != null ? a.totalScore : "—"}
+          </span>
         </td>
         <td className="px-2.5 py-3 text-center">
           {a.consentToEnroll ? (

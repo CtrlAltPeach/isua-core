@@ -4,9 +4,16 @@ import { z } from "zod";
 export const APPLICANT_STATUSES = ["applied", "withdrawn"] as const;
 
 // --- Программа ---
+// Минимальные баллы по предметам: объект предмет→число (0-100) или null/{}.
+const minScoresSchema = z
+  .record(z.string(), z.coerce.number().int().min(0).max(100))
+  .nullable()
+  .optional();
+
 export const programSchema = z.object({
   name: z.string().min(1, "Название обязательно").max(100),
   places: z.coerce.number().int().min(0, "Мест не может быть меньше 0"),
+  minScores: minScoresSchema,
 });
 export const updateProgramSchema = programSchema.partial();
 

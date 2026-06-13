@@ -13,6 +13,7 @@ import {
   TrendingDown,
   Wallet,
   Scale,
+  FileDown,
 } from "lucide-react";
 import { statsApi, type DailyStats } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
@@ -99,14 +100,24 @@ export function Dashboard() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <h1 className="text-2xl font-bold text-slate-900">Дашборд</h1>
-        <Button variant="secondary" size="sm" onClick={load} disabled={loading}>
-          {loading ? (
-            <Loader2 className="size-4 animate-spin" />
-          ) : (
-            <RefreshCw className="size-4" />
-          )}
-          Обновить
-        </Button>
+        <div className="flex items-center gap-2">
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={() => window.open("/report", "_blank")}
+          >
+            <FileDown className="size-4" />
+            Отчёт PDF
+          </Button>
+          <Button variant="secondary" size="sm" onClick={load} disabled={loading}>
+            {loading ? (
+              <Loader2 className="size-4 animate-spin" />
+            ) : (
+              <RefreshCw className="size-4" />
+            )}
+            Обновить
+          </Button>
+        </div>
       </div>
 
       {error && (

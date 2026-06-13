@@ -4,6 +4,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ok, fail, unauthorized } from "@/lib/http";
 import { programSchema } from "@/lib/validation";
+import { parseMinScores } from "@/lib/thresholds";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
@@ -18,6 +19,7 @@ export async function GET(req: NextRequest) {
     id: p.id,
     name: p.name,
     places: p.places,
+    minScores: parseMinScores(p.minScores),
     applicantCount: p._count.applicants,
     // Конкурс: абитуриентов на место (0 мест → null).
     competition:
@@ -45,6 +47,9 @@ export async function POST(req: NextRequest) {
   });
   if (existing) return fail("Программа с таким названием уже есть", 409);
 
-  const created = await prisma.program.create({ data: parsed.data });
+  const { name, places, minScores } = parsed.data;
+  const created = await prisma.program.create({
+    data: { name, places, ...(minScores ? { minScores } : {}) },
+  });
   return ok(created, 201);
 }
