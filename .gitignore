@@ -40,3 +40,8 @@ yarn-error.log*
 # typescript
 *.tsbuildinfo
 next-env.d.ts
+
+# временные файлы рабочего процесса (сообщения коммитов, verify-скрипты)
+commit-msg-tmp.txt
+verify*-tmp.mjs
+dev-server.log

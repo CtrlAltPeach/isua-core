@@ -36,5 +36,6 @@ export async function POST(req: NextRequest) {
   });
   await setAuthCookie(token);
 
-  return ok({ user, token }, 201);
+  // Токен только в httpOnly-cookie, в теле не отдаём (см. login).
+  return ok({ user }, 201);
 }

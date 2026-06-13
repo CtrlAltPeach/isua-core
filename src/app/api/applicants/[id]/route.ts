@@ -11,6 +11,8 @@ import { updateApplicantSchema } from "@/lib/validation";
 import { calculateTotalScore, SCORE_FIELDS } from "@/lib/scoring";
 import { normalizeConsent } from "@/lib/applicant-logic";
 import { buildHistoryEntries } from "@/lib/history";
+import { encrypt, decrypt } from "@/lib/crypto";
+import { PII_FIELDS, decryptPii } from "@/lib/applicant-pii";
 import type { ApplicantStatus } from "@/lib/types";
 
 function parseId(raw: string): number | null {
@@ -34,7 +36,7 @@ export async function GET(
   });
   if (!applicant) return notFound("Абитуриент");
 
-  return ok(applicant);
+  return ok(decryptPii(applicant));
 }
 
 export async function PUT(
@@ -111,13 +113,44 @@ export async function PUT(
     "notes",
   ] as const;
 
+  // Шифруемые ПДн обрабатываем отдельно: в БД — зашифрованное значение,
+  // в историю — только маска (факт изменения, без раскрытия значения).
+  const PII = new Set<string>(PII_FIELDS);
+  const mask = (v: unknown): string | null =>
+    v == null || v === "" ? null : "•••";
+
   const afterForHistory: Record<string, unknown> = {};
+  // Записи истории для ПДн (строятся вручную, с маской).
+  const piiHistory: {
+    fieldName: string;
+    oldValue: string | null;
+    newValue: string | null;
+  }[] = [];
+
   for (const f of SIMPLE_FIELDS) {
     if (f in rest && rest[f] !== undefined) {
       // programId как relation требует особой формы — задаём отдельно ниже.
       if (f === "programId") continue;
-      (updates as Record<string, unknown>)[f] = rest[f];
-      afterForHistory[f] = rest[f];
+      if (PII.has(f)) {
+        const raw = rest[f];
+        // В БД — зашифрованное значение.
+        (updates as Record<string, unknown>)[f] =
+          typeof raw === "string" ? encrypt(raw) : (raw ?? null);
+        // Детект изменения по РАСШИФРОВАННОМУ старому значению; в журнал — маска.
+        const oldPlain = decrypt(current[f as keyof typeof current] as string | null);
+        const newPlain = typeof raw === "string" ? (raw === "" ? null : raw) : null;
+        if (oldPlain !== newPlain) {
+          piiHistory.push({
+            fieldName: f,
+            oldValue: mask(oldPlain),
+            newValue: mask(newPlain),
+          });
+        }
+        // НЕ кладём в afterForHistory — общий механизм пропустит это поле.
+      } else {
+        (updates as Record<string, unknown>)[f] = rest[f];
+        afterForHistory[f] = rest[f];
+      }
     }
   }
   if (rest.programId !== undefined) {
@@ -163,13 +196,23 @@ export async function PUT(
     afterForHistory.consentToEnroll = finalConsent;
   }
 
-  // Записи истории по изменившимся логируемым полям.
+  // Записи истории по изменившимся логируемым полям (ПДн исключены — см. ниже).
   const historyEntries = buildHistoryEntries(
     id,
     user.id,
     current as unknown as Record<string, unknown>,
     afterForHistory,
   );
+  // Добавляем записи по ПДн с маской (значения не раскрываются в журнале).
+  for (const h of piiHistory) {
+    historyEntries.push({
+      applicantId: id,
+      changedByUserId: user.id,
+      fieldName: h.fieldName,
+      oldValue: h.oldValue,
+      newValue: h.newValue,
+    });
+  }
 
   // Инкремент version при любом изменении.
   updates.version = { increment: 1 };
@@ -184,7 +227,7 @@ export async function PUT(
     prisma.history.createMany({ data: historyEntries }),
   ]);
 
-  return ok(updated);
+  return ok(decryptPii(updated));
 }
 
 export async function DELETE(

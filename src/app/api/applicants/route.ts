@@ -9,6 +9,7 @@ import { ok, fail, unauthorized } from "@/lib/http";
 import { createApplicantSchema, APPLICANT_STATUSES } from "@/lib/validation";
 import { calculateTotalScore } from "@/lib/scoring";
 import { normalizeConsent } from "@/lib/applicant-logic";
+import { encryptPii, decryptPii, decryptPiiList } from "@/lib/applicant-pii";
 import type { ApplicantStatus } from "@/lib/types";
 
 // Разрешённые поля сортировки (защита от инъекции имени колонки).
@@ -70,7 +71,7 @@ export async function GET(req: NextRequest) {
     prisma.applicant.count({ where }),
   ]);
 
-  return ok({ items, total, page, limit });
+  return ok({ items: decryptPiiList(items), total, page, limit });
 }
 
 export async function POST(req: NextRequest) {
@@ -102,6 +103,14 @@ export async function POST(req: NextRequest) {
   );
   const consent = normalizeConsent(status, data.consentToEnroll ?? false);
 
+  // Шифруем персональные данные (паспорт/ИНН/СНИЛС) перед записью.
+  const pii = encryptPii({
+    passportSeries: data.passportSeries,
+    passportNumber: data.passportNumber,
+    inn: data.inn,
+    snils: data.snils,
+  });
+
   const created = await prisma.applicant.create({
     data: {
       fullName: data.fullName,
@@ -115,8 +124,8 @@ export async function POST(req: NextRequest) {
       isPaid: data.isPaid ?? false,
       documentType: data.documentType ?? null,
       citizenship: data.citizenship,
-      passportSeries: data.passportSeries,
-      passportNumber: data.passportNumber,
+      passportSeries: pii.passportSeries,
+      passportNumber: pii.passportNumber,
       mathBase,
       mathProfile,
       russian: data.russian,
@@ -127,13 +136,14 @@ export async function POST(req: NextRequest) {
       additionalScores,
       totalScore,
       registrationAddress: data.registrationAddress,
-      inn: data.inn,
-      snils: data.snils,
+      inn: pii.inn,
+      snils: pii.snils,
       notes: data.notes,
       createdByUserId: user.id,
     },
     include: { program: { select: { id: true, name: true } } },
   });
 
-  return ok(created, 201);
+  // Возвращаем расшифрованным, чтобы клиент видел введённые значения.
+  return ok(decryptPii(created), 201);
 }
