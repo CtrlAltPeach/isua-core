@@ -148,7 +148,7 @@ export function ApplicantFormModal({
   }, [open, applicant, reset]);
 
   useEffect(() => {
-    programsApi.list().then(setPrograms).catch(() => {});
+    programsApi.list().then(setPrograms).catch(() => { });
   }, []);
 
   const watched = watch();
@@ -499,7 +499,7 @@ export function ApplicantFormModal({
             </div>
             {(mathBaseFilled || mathProfileFilled) && (
               <p className="mt-2 text-xs text-slate-400">
-                Математика: база и профиль взаимоисключающи — заполнено одно,
+                Математика: база и профиль взаимоисключаются — заполнено одно,
                 второе заблокировано.
               </p>
             )}

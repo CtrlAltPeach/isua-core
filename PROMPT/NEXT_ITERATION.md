@@ -28,6 +28,7 @@
 - **Toast-уведомления** вместо `alert/confirm` (удаление, ошибки).
 - **Retry/переподключение** при потере соединения.
 - **Тесты:** unit (calculateTotalScore, normalizeConsent, history) + интеграционные.
+- **Заполнить README**
 
 ---
 
