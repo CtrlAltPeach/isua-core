@@ -11,7 +11,6 @@ import {
 import {
   Search,
   Plus,
-  Pencil,
   Clock,
   ChevronLeft,
   ChevronRight,
@@ -56,19 +55,21 @@ const COLUMNS: {
   align?: ColAlign;
   thClass?: string;
 }[] = [
-  { key: "fullName", label: "ФИО", thClass: "min-w-56" },
+  // ФИО — без явной ширины: в table-fixed забирает весь остаток после
+  // фиксированных колонок (растягивается на широком экране).
+  { key: "fullName", label: "ФИО" },
   { key: null, label: "Программа", thClass: "w-24" },
   { key: "status", label: "Статус", thClass: "w-28" },
   { key: "totalScore", label: "Балл", align: "right", thClass: "w-16" },
   // Узкие центрированные колонки с галочками.
   { key: null, label: "Согл.", align: "center", thClass: "w-14" },
   { key: null, label: "Док.", align: "center", thClass: "w-14" },
-  { key: null, label: "Гражданство", thClass: "w-28" },
-  { key: null, label: "Паспорт", thClass: "w-28" },
-  { key: null, label: "Телефон", thClass: "w-32" },
-  { key: null, label: "Email", thClass: "w-40" },
-  { key: "createdAt", label: "Дата", thClass: "w-24" },
-  { key: null, label: "", thClass: "w-20" },
+  { key: null, label: "Гражданство", thClass: "w-24" },
+  { key: null, label: "Паспорт", thClass: "w-24" },
+  { key: null, label: "Телефон", thClass: "w-28" },
+  { key: null, label: "Email", thClass: "w-36" },
+  { key: "createdAt", label: "Дата", thClass: "w-20" },
+  { key: null, label: "", thClass: "w-12" },
 ];
 
 export function ApplicantTable({
@@ -226,7 +227,8 @@ export function ApplicantTable({
     return (
       <tr
         key={a.id}
-        className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
+        onClick={() => onEdit(a)}
+        className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
       >
         <td className="px-2.5 py-3 font-medium text-slate-900">
           <span className="flex items-center gap-1.5">
@@ -331,20 +333,16 @@ export function ApplicantTable({
           </div>
         </td>
         <td className="px-2.5 py-3">
-          <div className="flex items-center justify-end gap-1">
+          <div className="flex items-center justify-end">
             <button
-              onClick={() => onHistory(a)}
+              onClick={(e) => {
+                e.stopPropagation();
+                onHistory(a);
+              }}
               title="История изменений"
               className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
             >
               <Clock className="size-4" />
-            </button>
-            <button
-              onClick={() => onEdit(a)}
-              title="Редактировать"
-              className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
-            >
-              <Pencil className="size-4" />
             </button>
           </div>
         </td>
@@ -414,17 +412,18 @@ export function ApplicantTable({
         </Button>
       </div>
 
-      {/* Таблица */}
+      {/* Таблица — область фикс-высоты: шапка закреплена (sticky),
+          вертикальный и горизонтальный скролл внутри этой области. */}
       <Card className="overflow-hidden">
-        <div className="overflow-x-auto">
-          <table className="w-full table-fixed text-sm">
+        <div className="max-h-[calc(100vh-19rem)] overflow-auto">
+          <table className="w-full min-w-[58rem] table-fixed text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
                 {COLUMNS.map((col, i) => (
                   <th
                     key={i}
                     className={cn(
-                      "px-2.5 py-3 font-medium",
+                      "sticky top-0 z-10 bg-slate-50 px-2.5 py-3 font-medium",
                       col.align === "right" && "text-right",
                       col.align === "center" && "text-center",
                       col.thClass,
