@@ -1,6 +1,6 @@
 // Вкладка «Абитуриенты»: таблица + модальная форма add/edit + история.
 "use client";
-import { useState } from "react";
+import { Suspense, useState } from "react";
 import { AppShell } from "@/components/app-shell";
 import { ApplicantTable } from "@/components/applicant-table";
 import { ApplicantFormModal } from "@/components/applicant-form-modal";
@@ -33,12 +33,14 @@ export default function ApplicantsPage() {
 
   return (
     <AppShell>
-      <ApplicantTable
-        onCreate={openCreate}
-        onEdit={openEdit}
-        onHistory={openHistory}
-        refreshKey={refreshKey}
-      />
+      <Suspense fallback={null}>
+        <ApplicantTable
+          onCreate={openCreate}
+          onEdit={openEdit}
+          onHistory={openHistory}
+          refreshKey={refreshKey}
+        />
+      </Suspense>
       <ApplicantFormModal
         open={modalOpen}
         applicant={editing}

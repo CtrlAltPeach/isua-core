@@ -31,6 +31,7 @@ import {
   type ApplicantFilters,
   type ProgramSummary,
 } from "@/lib/api";
+import { useSearchParams } from "next/navigation";
 import type { ApplicantWithProgram, ApplicantStatus } from "@/lib/types";
 import { useAppStore } from "@/lib/store";
 import {
@@ -82,6 +83,9 @@ export function ApplicantTable({
   refreshKey?: number;
 }) {
   const timezone = useAppStore((s) => s.timezone);
+  const searchParams = useSearchParams();
+  // Начальный фильтр по программе из query (?program=ID) — переход с карточек.
+  const initialProgram = searchParams.get("program") ?? "";
 
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [items, setItems] = useState<ApplicantWithProgram[]>([]);
@@ -96,7 +100,7 @@ export function ApplicantTable({
   const [search, setSearch] = useState("");
   const [debouncedSearch, setDebouncedSearch] = useState("");
   const [status, setStatus] = useState<string>("");
-  const [programId, setProgramId] = useState<string>("");
+  const [programId, setProgramId] = useState<string>(initialProgram);
   const [sortBy, setSortBy] = useState<SortKey>("createdAt");
   const [order, setOrder] = useState<"asc" | "desc">("desc");
   const [page, setPage] = useState(1);

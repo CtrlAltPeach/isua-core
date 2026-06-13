@@ -58,6 +58,8 @@ export async function GET(req: NextRequest) {
       include: {
         applicants: {
           select: {
+            fullName: true,
+            status: true,
             totalScore: true,
             consentToEnroll: true,
             documentsComplete: true,
@@ -101,7 +103,14 @@ export async function GET(req: NextRequest) {
     const newToday = apps.filter(
       (a) => a.createdAt >= dayStart && a.createdAt < dayEnd,
     ).length;
+    // Топ-3 абитуриента по баллу.
+    const topApplicants = apps
+      .filter((a) => typeof a.totalScore === "number")
+      .sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
+      .slice(0, 3)
+      .map((a) => ({ fullName: a.fullName, totalScore: a.totalScore }));
     return {
+      programId: p.id,
       program: p.name,
       places: p.places,
       applicants: apps.length,
@@ -115,6 +124,10 @@ export async function GET(req: NextRequest) {
       // Укомплектованность бюджетных мест согласиями (%).
       consentFillPercent:
         p.places > 0 ? Math.round((withConsent / p.places) * 100) : 0,
+      // Разбивка по статусам.
+      applied: apps.filter((a) => a.status === "applied").length,
+      withdrawn: apps.filter((a) => a.status === "withdrawn").length,
+      topApplicants,
     };
   });
 

@@ -1,15 +1,12 @@
-// Вкладка «Программы» (каркас — карточки в фазе 4).
+// Вкладка «Программы»: карточки-аналитика.
 "use client";
 import { AppShell } from "@/components/app-shell";
-import { Card } from "@/components/ui";
+import { ProgramsView } from "@/components/programs-view";
 
 export default function ProgramsPage() {
   return (
     <AppShell>
-      <h1 className="mb-4 text-xl font-bold text-slate-900">Программы</h1>
-      <Card className="p-6 text-sm text-slate-500">
-        Карточки программ появятся здесь.
-      </Card>
+      <ProgramsView />
     </AppShell>
   );
 }

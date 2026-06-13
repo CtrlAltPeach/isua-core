@@ -161,6 +161,7 @@ export const locksApi = {
 
 // --- Stats ---
 export interface ProgramStatRow {
+  programId: number;
   program: string;
   places: number;
   applicants: number;
@@ -171,6 +172,9 @@ export interface ProgramStatRow {
   withPaid: number;
   newToday: number;
   consentFillPercent: number;
+  applied: number;
+  withdrawn: number;
+  topApplicants: { fullName: string; totalScore: number | null }[];
 }
 
 export interface DailyStats {
