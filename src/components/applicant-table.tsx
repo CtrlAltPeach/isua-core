@@ -22,6 +22,7 @@ import {
   ArrowDown,
   Check,
   AlertTriangle,
+  StickyNote,
   Loader2,
 } from "lucide-react";
 import {
@@ -49,31 +50,40 @@ type SortKey = "fullName" | "status" | "totalScore" | "createdAt";
 
 // align: выравнивание; thClass: ширина/выравнивание ячеек.
 type ColAlign = "left" | "right" | "center";
+// Главные колонки таблицы. Детальные поля (гражданство, паспорт, контакты,
+// заметка) вынесены в раскрывающуюся строку-деталь (7D) — так таблица узкая
+// и помещается без горизонтального скролла.
 const COLUMNS: {
   key: SortKey | null;
   label: string;
   align?: ColAlign;
   thClass?: string;
 }[] = [
-  // ФИО — фиксированная ширина (не сжимается/растягивается с окном).
+  // Колонка-шеврон раскрытия деталей.
+  { key: null, label: "", thClass: "w-9" },
   { key: "fullName", label: "ФИО", thClass: "w-72" },
-  { key: null, label: "Программа", thClass: "w-24" },
+  { key: null, label: "Программа", thClass: "w-28" },
   { key: "status", label: "Статус", thClass: "w-28" },
   { key: "totalScore", label: "Балл", align: "right", thClass: "w-16" },
   // Узкие центрированные колонки с галочками.
-  { key: null, label: "Согл.", align: "center", thClass: "w-14" },
-  { key: null, label: "Док.", align: "center", thClass: "w-14" },
-  { key: null, label: "Гражданство", thClass: "w-24" },
-  { key: null, label: "Паспорт", thClass: "w-24" },
-  { key: null, label: "Телефон", thClass: "w-28" },
-  { key: null, label: "Email", thClass: "w-36" },
-  // Распорка: забирает остаток ширины на широком экране, держит остальные
-  // колонки слева (включая «Историю»), чтобы кнопка не уезжала при сжатии.
+  { key: null, label: "Согл.", align: "center", thClass: "w-16" },
+  { key: null, label: "Док.", align: "center", thClass: "w-16" },
+  // Распорка: забирает остаток ширины на широком экране.
   { key: null, label: "", thClass: "w-auto" },
-  { key: "createdAt", label: "Дата", thClass: "w-20" },
+  { key: "createdAt", label: "Дата", thClass: "w-24" },
   // Колонка действий — фиксированная узкая ширина.
   { key: null, label: "", thClass: "w-12" },
 ];
+
+// Пара «подпись/значение» в раскрытой строке-детали.
+function Detail({ label, value }: { label: string; value?: string | null }) {
+  return (
+    <div>
+      <dt className="text-xs font-medium text-slate-400">{label}</dt>
+      <dd className="text-slate-700">{value ? value : "—"}</dd>
+    </div>
+  );
+}
 
 export function ApplicantTable({
   onEdit,
@@ -99,6 +109,16 @@ export function ApplicantTable({
   // Группировка по дням (свёртываемые разделители).
   const [groupByDay, setGroupByDay] = useState(false);
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
+
+  // Раскрытые строки-детали (id абитуриентов).
+  const [expandedRows, setExpandedRows] = useState<Set<number>>(new Set());
+  const toggleRow = (id: number) =>
+    setExpandedRows((prev) => {
+      const next = new Set(prev);
+      if (next.has(id)) next.delete(id);
+      else next.add(id);
+      return next;
+    });
 
   // Фильтры (локальное состояние таблицы).
   const [search, setSearch] = useState("");
@@ -241,12 +261,30 @@ export function ApplicantTable({
     const failing = prog?.minScores
       ? failingSubjects(a, prog.minScores)
       : [];
+    const expanded = expandedRows.has(a.id);
     return (
+      <Fragment key={a.id}>
       <tr
-        key={a.id}
         onClick={() => onEdit(a)}
-        className="cursor-pointer border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
+        className="cursor-pointer border-b border-slate-100 hover:bg-emerald-50/40"
       >
+        {/* Шеврон раскрытия деталей (клик не открывает редактирование) */}
+        <td className="px-1 py-3">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleRow(a.id);
+            }}
+            title={expanded ? "Свернуть детали" : "Показать детали"}
+            className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+          >
+            {expanded ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronRightSmall className="size-4" />
+            )}
+          </button>
+        </td>
         <td className="px-2.5 py-3 font-medium text-slate-900">
           <span className="flex items-center gap-1.5">
             {/* Имя обрезается с плавным размытием хвоста, если не влезает */}
@@ -284,6 +322,14 @@ export function ApplicantTable({
                 className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-xs font-bold text-slate-600"
               >
                 П
+              </span>
+            )}
+            {a.notes && (
+              <span
+                title={a.notes}
+                className="inline-flex shrink-0 text-amber-500"
+              >
+                <StickyNote className="size-3.5" />
               </span>
             )}
           </span>
@@ -327,20 +373,6 @@ export function ApplicantTable({
             <span className="font-bold text-rose-400">✗</span>
           )}
         </td>
-        <td className="truncate px-2.5 py-3 text-slate-600">
-          {a.citizenship ?? "—"}
-        </td>
-        <td className="truncate px-2.5 py-3 text-slate-500">
-          {a.passportSeries || a.passportNumber
-            ? `${a.passportSeries ?? ""} ${a.passportNumber ?? ""}`.trim()
-            : "—"}
-        </td>
-        <td className="truncate px-2.5 py-3 text-slate-600">
-          {a.phone ?? "—"}
-        </td>
-        <td className="truncate px-2.5 py-3 text-slate-600">
-          {a.email ?? "—"}
-        </td>
         {/* Распорка (w-auto) */}
         <td className="px-2.5 py-3" />
         <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
@@ -364,6 +396,36 @@ export function ApplicantTable({
           </button>
         </td>
       </tr>
+      {/* Строка-деталь: гражданство, паспорт, контакты, заметка (7D). */}
+      {expanded && (
+        <tr className="border-b border-slate-100 bg-slate-50/60">
+          <td />
+          <td colSpan={colCount - 1} className="px-2.5 pb-3 pt-1">
+            <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
+              <Detail label="Гражданство" value={a.citizenship} />
+              <Detail
+                label="Паспорт"
+                value={
+                  a.passportSeries || a.passportNumber
+                    ? `${a.passportSeries ?? ""} ${a.passportNumber ?? ""}`.trim()
+                    : null
+                }
+              />
+              <Detail label="Телефон" value={a.phone} />
+              <Detail label="Email" value={a.email} />
+              {a.notes && (
+                <div className="col-span-2 sm:col-span-4">
+                  <dt className="text-xs font-medium text-slate-400">Заметка</dt>
+                  <dd className="whitespace-pre-wrap text-slate-700">
+                    {a.notes}
+                  </dd>
+                </div>
+              )}
+            </dl>
+          </td>
+        </tr>
+      )}
+      </Fragment>
     );
   };
 
@@ -433,7 +495,7 @@ export function ApplicantTable({
           вертикальный и горизонтальный скролл внутри этой области. */}
       <Card className="overflow-hidden">
         <div className="max-h-[calc(100vh-19rem)] overflow-auto">
-          <table className="w-full min-w-[58rem] table-fixed text-sm">
+          <table className="w-full min-w-[44rem] table-fixed text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
                 {COLUMNS.map((col, i) => (
