@@ -5,13 +5,20 @@ export const STATUS_META: Record<
   ApplicantStatus,
   { label: string; badge: string }
 > = {
-  applied: { label: "Подал заявление", badge: "bg-emerald-100 text-emerald-700" },
-  withdrawn: { label: "Забрал заявление", badge: "bg-rose-100 text-rose-700" },
+  // В таблице — короткая метка «Заявление», различие только цветом.
+  applied: { label: "Заявление", badge: "bg-emerald-100 text-emerald-700" },
+  withdrawn: { label: "Заявление", badge: "bg-rose-100 text-rose-700" },
+};
+
+// Полные подписи (для выпадающих списков фильтра и формы).
+export const STATUS_FULL_LABEL: Record<ApplicantStatus, string> = {
+  applied: "Подал заявление",
+  withdrawn: "Забрал заявление",
 };
 
 export const STATUS_OPTIONS: { value: ApplicantStatus; label: string }[] = (
   Object.keys(STATUS_META) as ApplicantStatus[]
-).map((value) => ({ value, label: STATUS_META[value].label }));
+).map((value) => ({ value, label: STATUS_FULL_LABEL[value] }));
 
 // Человекочитаемые названия полей (для истории изменений).
 export const FIELD_LABELS: Record<string, string> = {
@@ -53,7 +60,7 @@ export function formatHistoryValue(
 ): string {
   if (value === null || value === "") return "—";
   if (field === "status") {
-    return STATUS_META[value as ApplicantStatus]?.label ?? value;
+    return STATUS_FULL_LABEL[value as ApplicantStatus] ?? value;
   }
   if (field === "documentType") {
     return value === "diploma"

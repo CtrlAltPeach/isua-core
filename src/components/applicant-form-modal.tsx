@@ -317,14 +317,14 @@ export function ApplicantFormModal({
       }
     >
       {/* Вкладки */}
-      <div className="mb-4 flex flex-wrap gap-1 border-b border-slate-200">
+      <div className="mb-4 flex gap-1 overflow-x-auto border-b border-slate-200">
         {TABS.map((t) => (
           <button
             key={t}
             type="button"
             onClick={() => setTab(t)}
             className={cn(
-              "-mb-px border-b-2 px-3 py-2 text-sm font-medium transition-colors",
+              "-mb-px whitespace-nowrap border-b-2 px-2.5 py-2 text-sm font-medium transition-colors",
               tab === t
                 ? "border-emerald-600 text-emerald-700"
                 : "border-transparent text-slate-500 hover:text-slate-800",

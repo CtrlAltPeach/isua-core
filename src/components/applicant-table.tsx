@@ -55,7 +55,7 @@ const COLUMNS: {
 }[] = [
   { key: "fullName", label: "ФИО", thClass: "min-w-56" },
   { key: null, label: "Программа", thClass: "w-24" },
-  { key: "status", label: "Статус", thClass: "w-40" },
+  { key: "status", label: "Статус", thClass: "w-28" },
   { key: "totalScore", label: "Балл", align: "right", thClass: "w-16" },
   // Узкие центрированные колонки с галочками.
   { key: null, label: "Согл.", align: "center", thClass: "w-14" },
@@ -218,8 +218,20 @@ export function ApplicantTable({
         className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
       >
         <td className="px-2.5 py-3 font-medium text-slate-900">
-          <span className="flex items-center gap-1.5 whitespace-nowrap">
-            {a.fullName}
+          <span className="flex items-center gap-1.5">
+            {/* Имя обрезается с плавным размытием хвоста, если не влезает */}
+            <span
+              className="min-w-0 overflow-hidden whitespace-nowrap"
+              style={{
+                maskImage:
+                  "linear-gradient(to right, black calc(100% - 1.5rem), transparent)",
+                WebkitMaskImage:
+                  "linear-gradient(to right, black calc(100% - 1.5rem), transparent)",
+              }}
+              title={a.fullName}
+            >
+              {a.fullName}
+            </span>
             {a.mathBase != null && (
               <span
                 title={`База математики: ${a.mathBase}`}
