@@ -398,6 +398,16 @@ export function ApplicantTable({
             <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
               <Detail label="Гражданство" value={a.citizenship} />
               <Detail
+                label="Документ об образовании"
+                value={
+                  a.documentType === "diploma"
+                    ? "Диплом"
+                    : a.documentType === "certificate"
+                      ? "Аттестат"
+                      : null
+                }
+              />
+              <Detail
                 label="Паспорт"
                 value={
                   a.passportSeries || a.passportNumber
@@ -405,6 +415,9 @@ export function ApplicantTable({
                     : null
                 }
               />
+              <Detail label="СНИЛС" value={a.snils} />
+              <Detail label="ИНН" value={a.inn} />
+              <Detail label="Прописка" value={a.registrationAddress} />
               <Detail label="Email" value={a.email} />
               {a.notes && (
                 <div className="col-span-2 sm:col-span-4">
