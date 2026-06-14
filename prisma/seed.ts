@@ -3,6 +3,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { calculateTotalScore } from "../src/lib/scoring";
+import { encrypt } from "../src/lib/crypto";
 
 const prisma = new PrismaClient();
 
@@ -57,6 +58,9 @@ const MID_F = ["Ивановна", "Петровна", "Алексеевна", "
 const STATUSES = ["applied", "withdrawn"] as const;
 const NOTES = ["Льготник", "Олимпиадник", "Целевое", "Перевод из другого вуза", null, null, null];
 
+const CITIES = ["г. Москва", "г. Санкт-Петербург", "г. Казань", "г. Екатеринбург", "г. Новосибирск"];
+const STREETS = ["ул. Ленина", "ул. Гагарина", "пр. Мира", "ул. Советская", "ул. Школьная"];
+
 function rnd<T>(arr: readonly T[]): T {
   return arr[Math.floor(Math.random() * arr.length)];
 }
@@ -65,6 +69,22 @@ function rndScore(): number {
 }
 function maybe<T>(value: T, p = 0.8): T | null {
   return Math.random() < p ? value : null;
+}
+function rndDigits(n: number): string {
+  let s = "";
+  for (let i = 0; i < n; i++) s += Math.floor(Math.random() * 10);
+  return s;
+}
+function rndSnils(): string {
+  // Формат XXX-XXX-XXX YY (без контрольной суммы — тестовые данные).
+  return `${rndDigits(3)}-${rndDigits(3)}-${rndDigits(3)} ${rndDigits(2)}`;
+}
+function rndAddress(): string {
+  return `${rnd(CITIES)}, ${rnd(STREETS)}, д. ${1 + Math.floor(Math.random() * 80)}, кв. ${1 + Math.floor(Math.random() * 200)}`;
+}
+// Шифрование ПДн для seed (как делает API через encryptPii). Хранить открыто нельзя.
+function encPii(v: string | null): string | null {
+  return v == null ? null : encrypt(v);
 }
 
 async function seedApplicants(createdByUserId: number) {
@@ -98,6 +118,11 @@ async function seedApplicants(createdByUserId: number) {
     // Согласие — у части подавших; забравшие — всегда false.
     const consent = status === "applied" && Math.random() < 0.5;
 
+    // Паспорт: серия и номер заполняются вместе (либо оба, либо ни одного).
+    const hasPassport = Math.random() < 0.75;
+    const passportSeries = hasPassport ? rndDigits(4) : null;
+    const passportNumber = hasPassport ? rndDigits(6) : null;
+
     await prisma.applicant.create({
       data: {
         fullName,
@@ -111,6 +136,12 @@ async function seedApplicants(createdByUserId: number) {
         isPaid: Math.random() < 0.2,
         documentType: rnd(["diploma", "certificate", null] as const) ?? undefined,
         citizenship: rnd(["Россия", "Россия", "Россия", "Беларусь", "Казахстан"] as const),
+        // Персональные данные (паспорт/ИНН/СНИЛС) — ЗАШИФРОВАННЫЕ (как в API).
+        passportSeries: encPii(passportSeries) ?? undefined,
+        passportNumber: encPii(passportNumber) ?? undefined,
+        inn: encPii(maybe(rndDigits(12), 0.5)) ?? undefined,
+        snils: encPii(maybe(rndSnils(), 0.5)) ?? undefined,
+        registrationAddress: maybe(rndAddress(), 0.6) ?? undefined,
         mathBase: mathBase ?? undefined,
         ...scores,
         additionalScores,
