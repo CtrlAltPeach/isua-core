@@ -61,15 +61,16 @@ const COLUMNS: {
 }[] = [
   // Колонка-шеврон раскрытия деталей.
   { key: null, label: "", thClass: "w-9" },
-  { key: "fullName", label: "ФИО", thClass: "w-72" },
+  // ФИО забирает остаток ширины (w-auto) — растягивается на широком экране,
+  // имя влезает полностью; сверхдлинные обрезаются многоточием с title.
+  { key: "fullName", label: "ФИО", thClass: "w-auto" },
   { key: null, label: "Программа", thClass: "w-28" },
   { key: "status", label: "Статус", thClass: "w-28" },
   { key: "totalScore", label: "Балл", align: "right", thClass: "w-16" },
   // Узкие центрированные колонки с галочками.
   { key: null, label: "Согл.", align: "center", thClass: "w-16" },
   { key: null, label: "Док.", align: "center", thClass: "w-16" },
-  // Распорка: забирает остаток ширины на широком экране.
-  { key: null, label: "", thClass: "w-auto" },
+  { key: null, label: "Телефон", thClass: "w-36" },
   { key: "createdAt", label: "Дата", thClass: "w-24" },
   // Колонка действий — фиксированная узкая ширина.
   { key: null, label: "", thClass: "w-12" },
@@ -287,17 +288,9 @@ export function ApplicantTable({
         </td>
         <td className="px-2.5 py-3 font-medium text-slate-900">
           <span className="flex items-center gap-1.5">
-            {/* Имя обрезается с плавным размытием хвоста, если не влезает */}
-            <span
-              className="min-w-0 overflow-hidden whitespace-nowrap"
-              style={{
-                maskImage:
-                  "linear-gradient(to right, black calc(100% - 1.5rem), transparent)",
-                WebkitMaskImage:
-                  "linear-gradient(to right, black calc(100% - 1.5rem), transparent)",
-              }}
-              title={a.fullName}
-            >
+            {/* ФИО влезает полностью (колонка w-auto); сверхдлинное —
+                обрезается многоточием, полное имя по наведению (title). */}
+            <span className="min-w-0 truncate" title={a.fullName}>
               {a.fullName}
             </span>
             {a.mathBase != null && (
@@ -373,8 +366,9 @@ export function ApplicantTable({
             <span className="font-bold text-rose-400">✗</span>
           )}
         </td>
-        {/* Распорка (w-auto) */}
-        <td className="px-2.5 py-3" />
+        <td className="truncate px-2.5 py-3 text-slate-600" title={a.phone ?? ""}>
+          {a.phone ?? "—"}
+        </td>
         <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
           <div className="leading-tight">
             <div>{formatDate(a.createdAt, timezone)}</div>
@@ -411,7 +405,6 @@ export function ApplicantTable({
                     : null
                 }
               />
-              <Detail label="Телефон" value={a.phone} />
               <Detail label="Email" value={a.email} />
               {a.notes && (
                 <div className="col-span-2 sm:col-span-4">
@@ -495,7 +488,7 @@ export function ApplicantTable({
           вертикальный и горизонтальный скролл внутри этой области. */}
       <Card className="overflow-hidden">
         <div className="max-h-[calc(100vh-19rem)] overflow-auto">
-          <table className="w-full min-w-[44rem] table-fixed text-sm">
+          <table className="w-full min-w-[50rem] table-fixed text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
                 {COLUMNS.map((col, i) => (
