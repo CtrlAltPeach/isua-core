@@ -3,7 +3,7 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 6 — полировка таблицы и статусов)
+## Текущее состояние (итерация 7 завершена — версия 0.7.4)
 
 ### Технологии (фактические — НЕ как в старом плане)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
@@ -16,6 +16,9 @@
 - Состояние: Zustand 5
 - Формы: React Hook Form 7 + Zod 4
 - Аутентификация: bcryptjs + jose (JWT HS256, httpOnly-cookie isua_token)
+  - rate-limit на login (lib/rate-limit.ts), токен только в cookie (не в теле ответа)
+- Шифрование ПДн: AES-256-GCM (lib/crypto.ts), поля passport/inn/snils зашифрованы
+  в БД, ключ ENCRYPTION_KEY. Шифрование на границе БД (lib/applicant-pii.ts).
 - Рантайм: Node.js (npm), НЕ Bun
 
 ### Структура БД (5 моделей)
@@ -23,9 +26,11 @@
 - Program: id, name (uniq), places (количество бюджетных мест), createdAt
 - Applicant:
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
-  - Экзамены: mathBase (2-5), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100), totalScore (auto-avg, без mathBase)
-  - Согласия: consentToEnroll (bool), documentsComplete (bool)
+  - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100), additionalScores, totalScore (auto: сумма топ-3 предметов + доп.баллы, без mathBase)
+  - Согласия: consentToEnroll (bool), documentsComplete (bool); квоты: specialQuota, isPaid
+  - Документы: documentType (diploma|certificate), citizenship, passportSeries, passportNumber
   - Персональные: registrationAddress?, inn?, snils?, notes?
+  - ⚠️ passportSeries/passportNumber/inn/snils хранятся ЗАШИФРОВАННЫМИ (AES-256-GCM, enc:v1:…)
   - Служебные: createdAt, updatedAt, createdByUserId (FK→User)
 - History: id, applicantId (FK!), fieldName, oldValue?, newValue?, changedByUserId (FK), changedAt
 - Lock: id, applicantId (unique FK!), userSessionId, lockedAt, lastHeartbeat (для совместного редактирования)
@@ -100,7 +105,7 @@ GET /api/stats/daily
 5 программ, 80+ абитуриентов (seed)
 0 ESLint ошибок
 
-## Что уже сделано (итерации 1–6)
+## Что уже сделано (итерации 1–7)
 - ✅ Backend, авторизация, дашборд, таблица абитуриентов (итер. 1)
 - ✅ Поля абитуриента (паспорт, гражданство, тип документа, особая квота, платное),
      вкладки в карточке, маркеры в таблице (Б/О/П) (итер. 3)
@@ -113,8 +118,18 @@ GET /api/stats/daily
      внутренний скролл, клик по строке = редактирование, убран карандаш (итер. 6)
 - ✅ Управление: /manage (program-manager + bulk-delete + пороги)
 - ✅ Исправлен баг Zod coerce (пустые баллы сохранялись как 0) — z.preprocess(emptyToNull)
+- ✅ Итерация 7: нетто-согласия за день (7A), карточка секциями вместо вкладок (7B),
+     шифрование ПДн паспорт/ИНН/СНИЛС AES-256-GCM (7C), раскрывающаяся строка-деталь
+     в таблице с заметкой/ПДн (7D), авто-обновление таблицы polling 20с (7F), имя
+     программы в истории (7G), аудит безопасности (rate-limit login, token не в теле),
+     seed с зашифрованными ПДн. ФИО без fade (w-auto+truncate), колонка «Телефон».
 
 ## Остаточный бэклог (не начато)
+
+### ПРИОРИТЕТ 0: Безопасность (остаточные риски аудита итер. 7)
+- A: /register открыт всем (доступ к ПДн) — закрыть (инвайт/только админ).
+- B: JWT_SECRET и ENCRYPTION_KEY — dev-значения в .env, для прода заменить.
+- C: нет ролей (оператор/админ). Нет серверного middleware.
 
 ### ПРИОРИТЕТ 1: Инфраструктура БД
 1.1 Пересоздать БД с ICU/русской локалью (initdb с ru-RU и ICU-provider)
