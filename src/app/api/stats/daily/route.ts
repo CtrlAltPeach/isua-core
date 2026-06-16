@@ -4,18 +4,7 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/http";
-
-// Границы суток для указанной даты в заданной таймзоне, в UTC.
-// Для MVP используем фиксированное смещение Москвы (UTC+3), если зона московская,
-// иначе считаем по UTC-датам выбранного дня.
-function dayBoundsUTC(dateStr: string, timezone: string): [Date, Date] {
-  const [y, m, d] = dateStr.split("-").map(Number);
-  // Москва = UTC+3. Для других зон оставляем UTC (упрощение MVP).
-  const offsetHours = timezone === "Europe/Moscow" ? 3 : 0;
-  const start = new Date(Date.UTC(y, m - 1, d, -offsetHours, 0, 0, 0));
-  const end = new Date(Date.UTC(y, m - 1, d + 1, -offsetHours, 0, 0, 0));
-  return [start, end];
-}
+import { dayBoundsUTC } from "@/lib/timezone";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);

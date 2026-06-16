@@ -3,7 +3,9 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 8 завершена — версия 0.8.0)
+## Текущее состояние (итерация 9 завершена — версия 0.9.0, ветка dev)
+> Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
+> Преview-деплой использует dev-БД (см. PROMPT/DATABASE_ENVIRONMENTS.md).
 
 ### Технологии (фактические — НЕ как в старом плане)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
@@ -107,7 +109,7 @@ GET /api/stats/daily
 5 программ, 80+ абитуриентов (seed)
 0 ESLint ошибок
 
-## Что уже сделано (итерации 1–8)
+## Что уже сделано (итерации 1–9)
 - ✅ Backend, авторизация, дашборд, таблица абитуриентов (итер. 1)
 - ✅ Поля абитуриента (паспорт, гражданство, тип документа, особая квота, платное),
      вкладки в карточке, маркеры в таблице (Б/О/П) (итер. 3)
@@ -131,6 +133,12 @@ GET /api/stats/daily
      /api/users — только admin), закрытие публичной регистрации (только admin создаёт юзеров,
      bootstrap первого admin), UI управления пользователями (UserManager в /manage),
      rate-limit на register, анти-enumeration в 409. Закрыты A/C/K1/K2 (см. §13 бэклога).
+- ✅ Особое право (0.8.1): поле specialRight, чекбокс, маркеры ОК/ОП (две градации жёлтого).
+- ✅ Итерация 9 (полировка+инфра): unit-тесты (vitest, 36 тестов — scoring/consent/crypto/
+     history/timezone); корректные таймзоны (lib/timezone.ts через Intl, убран хардкод
+     МСК=UTC+3); toast вместо alert/confirm (lib/toast + Toaster, lib/confirm + ConfirmDialog);
+     техдолг RHF watch()→useWatch (ESLint 0 проблем); документация сред БД
+     (PROMPT/DATABASE_ENVIRONMENTS.md — preview-БД для dev).
 
 ## Остаточный бэклог (не начато)
 
@@ -146,15 +154,14 @@ GET /api/stats/daily
   - Сейчас обойдено костылём lower(... COLLATE "und-x-icu") в raw SQL
   - После пересоздания: вернуть mode: "insensitive" в Prisma
 
-### ПРИОРИТЕТ 5: Полировка
-5.1 Временные зоны: сейчас stats/daily упрощён (МСК=UTC+3, прочие=UTC)
-  - Корректный расчёт границ суток для любой зоны (date-fns-tz / Intl)
-5.2 Toast-уведомления вместо alert/confirm
-5.3 Retry/переподключение при потере соединения
-5.4 Тесты: unit (calculateTotalScore, normalizeConsent, history) + интеграционные
+### ПРИОРИТЕТ 2: Полировка
+5.1 ✅ Временные зоны (lib/timezone.ts через Intl, итер.9)
+5.2 ✅ Toast вместо alert/confirm (итер.9)
+5.3 Retry/переподключение при потере соединения — НЕ начато
+5.4 ✅ Тесты unit (vitest, 36 тестов, итер.9); интеграционные — позже
 
 ## Технический долг
-- RHF watch() даёт ESLint-warning incompatible-library (React Compiler). Решение: useWatch / контролируемые поля.
+- ✅ RHF watch()→useWatch (итер.9) — warning устранён, ESLint 0 проблем.
 - Апгрейд Prisma 6→7 (требует prisma.config.ts + driver adapter) — не срочно.
 
 ## Известные баги
@@ -166,8 +173,8 @@ PostgreSQL 17 portable на :5432
 Запуск: pg_ctl -D path/to/data -l logfile start
 DATABASE_URL=postgresql://user:pass@localhost:5432/isua
 
-Бун, Next.js 16 dev:
-bun run dev → http://localhost:3000
+Next.js 16 dev:
+npm run dev → http://localhost:3000
 
 ## Особенности и договорённости
 - Зелёный акцент (emerald) + крупный шрифт в UI

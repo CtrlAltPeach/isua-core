@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Trash2, Loader2, ShieldCheck, User as UserIcon } from "lucide-react";
 import { usersApi, ApiError, type UserRow } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
+import { confirmDialog } from "@/lib/confirm";
+import { toast } from "@/lib/toast";
 import { Button, Input, Card, Modal, Label, Select } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -46,6 +48,7 @@ export function UserManager() {
     setBusy(true);
     try {
       await usersApi.create(email.trim(), username.trim(), password, newRole);
+      toast.success(`Пользователь «${username.trim()}» создан`);
       setAddOpen(false);
       setEmail("");
       setUsername("");
@@ -53,7 +56,10 @@ export function UserManager() {
       setNewRole("operator");
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Ошибка создания пользователя");
+      const msg =
+        e instanceof ApiError ? e.message : "Ошибка создания пользователя";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }
@@ -64,20 +70,34 @@ export function UserManager() {
     setError(null);
     try {
       await usersApi.setRole(u.id, role);
+      toast.success(
+        `Роль «${u.username}»: ${role === "admin" ? "Админ" : "Оператор"}`,
+      );
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Ошибка смены роли");
+      const msg = e instanceof ApiError ? e.message : "Ошибка смены роли";
+      setError(msg);
+      toast.error(msg);
     }
   };
 
   const remove = async (u: UserRow) => {
-    if (!confirm(`Удалить пользователя «${u.username}»?`)) return;
+    const ok = await confirmDialog({
+      title: "Удаление пользователя",
+      message: `Удалить пользователя «${u.username}»?`,
+      confirmText: "Удалить",
+      danger: true,
+    });
+    if (!ok) return;
     setError(null);
     try {
       await usersApi.remove(u.id);
+      toast.success(`Пользователь «${u.username}» удалён`);
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Ошибка удаления");
+      const msg = e instanceof ApiError ? e.message : "Ошибка удаления";
+      setError(msg);
+      toast.error(msg);
     }
   };
 

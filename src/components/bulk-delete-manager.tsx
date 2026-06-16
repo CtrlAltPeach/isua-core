@@ -4,6 +4,8 @@ import { useCallback, useEffect, useState } from "react";
 import { Search, Trash2, Loader2 } from "lucide-react";
 import { applicantsApi, ApiError } from "@/lib/api";
 import type { ApplicantWithProgram } from "@/lib/types";
+import { confirmDialog } from "@/lib/confirm";
+import { toast } from "@/lib/toast";
 import { Button, Input, Card } from "@/components/ui";
 
 export function BulkDeleteManager() {
@@ -63,17 +65,24 @@ export function BulkDeleteManager() {
 
   const deleteSelected = async () => {
     if (selected.size === 0) return;
-    if (!confirm(`Удалить ${selected.size} абитуриент(ов)? Действие необратимо.`))
-      return;
+    const ok = await confirmDialog({
+      title: "Массовое удаление",
+      message: `Удалить ${selected.size} абитуриент(ов)? Действие необратимо.`,
+      confirmText: "Удалить",
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     setMessage(null);
     try {
       const res = await applicantsApi.bulkDelete([...selected]);
-      setMessage(`Удалено: ${res.deleted}`);
+      toast.success(`Удалено: ${res.deleted}`);
       setSelected(new Set());
       await load();
     } catch (e) {
-      setMessage(e instanceof ApiError ? e.message : "Ошибка удаления");
+      const msg = e instanceof ApiError ? e.message : "Ошибка удаления";
+      setMessage(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

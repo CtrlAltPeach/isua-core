@@ -3,6 +3,8 @@
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Check, X, Target } from "lucide-react";
 import { programsApi, ApiError, type ProgramSummary } from "@/lib/api";
+import { confirmDialog } from "@/lib/confirm";
+import { toast } from "@/lib/toast";
 import { Button, Input, Card, Modal, Label } from "@/components/ui";
 import { SUBJECT_LABELS } from "@/lib/thresholds";
 import { SCORE_FIELDS } from "@/lib/scoring";
@@ -73,14 +75,23 @@ export function ProgramManager() {
   };
 
   const remove = async (p: ProgramSummary) => {
-    if (!confirm(`Удалить программу «${p.name}»?`)) return;
+    const ok = await confirmDialog({
+      title: "Удаление программы",
+      message: `Удалить программу «${p.name}»?`,
+      confirmText: "Удалить",
+      danger: true,
+    });
+    if (!ok) return;
     setBusy(true);
     setError(null);
     try {
       await programsApi.remove(p.id);
+      toast.success(`Программа «${p.name}» удалена`);
       await load();
     } catch (e) {
-      setError(e instanceof ApiError ? e.message : "Не удалось удалить");
+      const msg = e instanceof ApiError ? e.message : "Не удалось удалить";
+      setError(msg);
+      toast.error(msg);
     } finally {
       setBusy(false);
     }

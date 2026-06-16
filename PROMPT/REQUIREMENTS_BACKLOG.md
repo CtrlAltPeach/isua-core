@@ -379,6 +379,27 @@ history-modal подтягивает программы и резолвит prog
 
 ---
 
+## 10-quater. Итерация 9 (СДЕЛАНО — полировка + инфра, 2026-06-17, ветка dev)
+
+Тема: Приоритет 2 (полировка) + техдолг + инфраструктура сред. Работа в ветке `dev`.
+
+- [x] **Тесты (unit, vitest):** настроен vitest (vitest.config.ts, npm test). 36 тестов:
+  scoring (calculateTotalScore), applicant-logic (normalizeConsent), crypto (round-trip/
+  идемпотентность/legacy/null), history (buildHistoryEntries), timezone (границы суток).
+- [x] **Таймзоны:** lib/timezone.ts (tzOffsetMinutes/dayBoundsUTC через Intl) — корректные
+  границы суток для ЛЮБОЙ зоны. Убран хардкод МСК=UTC+3/прочие=UTC из stats/daily.
+- [x] **Toast вместо alert/confirm:** lib/toast.ts (Zustand) + Toaster (правый нижний угол);
+  lib/confirm.ts + ConfirmDialog (модал подтверждения вместо window.confirm). Все 3 confirm
+  заменены (program/bulk-delete/user manager); toast на успех/ошибку + сохранение абитуриента.
+- [x] **Техдолг RHF:** watch() → useWatch в applicant-form-modal — ушёл ESLint-warning
+  incompatible-library. Теперь ESLint по проекту = 0 проблем.
+- [x] **Инфраструктура сред:** PROMPT/DATABASE_ENVIRONMENTS.md — порядок работы с БД
+  main/prod ↔ dev/preview (разные DATABASE_URL по средам Vercel; migrate deploy вручную).
+- E2E-проверено (Playwright): toast при сохранении, ConfirmDialog (не нативный confirm).
+- Остаётся из Приоритета 2: 5.3 retry/переподключение при потере соединения.
+
+---
+
 ## 11. Tracking: Что сделано
 
 ✅ = сделано  
@@ -423,6 +444,13 @@ history-modal подтягивает программы и резолвит prog
 | 7E. Мобильный интерфейс | ❌ | дальше | адаптив, карточный режим таблицы — отложено |
 | 7F. Авто-обновление таблицы (polling) | ✅ | 7 | тихий polling 20с в applicant-table (load(silent)) |
 | 7G. История: название программы вместо id | ✅ | 7 | formatHistoryValue + programNames Map; фолбэк «Программа #id» |
+| Особое право (ОП) + ОК-маркеры | ✅ | 8.1 | поле specialRight, чекбокс, маркеры ОК/ОП две градации жёлтого |
+| Тесты (unit, vitest) | ✅ | 9 | 36 тестов: scoring/consent/crypto/history/timezone |
+| Таймзоны: корректные границы суток | ✅ | 9 | lib/timezone.ts (Intl), убран хардкод МСК=UTC+3 |
+| Toast вместо alert/confirm | ✅ | 9 | lib/toast + Toaster; lib/confirm + ConfirmDialog (3 confirm заменены) |
+| Техдолг: RHF watch() → useWatch | ✅ | 9 | ушёл warning incompatible-library; ESLint 0 проблем |
+| Инфра: preview-БД для dev | ✅ | 9 | PROMPT/DATABASE_ENVIRONMENTS.md (разные DATABASE_URL по средам) |
+| 5.3 Retry/переподключение | ❌ | дальше | при потере соединения |
 
 ---
 

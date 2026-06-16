@@ -4,7 +4,7 @@
 // логика согласия, оптимистичная блокировка.
 "use client";
 import { useEffect, useMemo, useState } from "react";
-import { useForm } from "react-hook-form";
+import { useForm, useWatch } from "react-hook-form";
 import { Loader2 } from "lucide-react";
 import { applicantsApi, programsApi, type ProgramSummary } from "@/lib/api";
 import { ApiError } from "@/lib/api";
@@ -13,6 +13,7 @@ import { calculateTotalScore } from "@/lib/scoring";
 import { failingSubjects, SUBJECT_LABELS } from "@/lib/thresholds";
 import { STATUS_OPTIONS } from "@/lib/applicant-ui";
 import { useLock } from "@/hooks/useLock";
+import { toast } from "@/lib/toast";
 import { Modal, Button, Input, Label, Select } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
@@ -138,7 +139,7 @@ export function ApplicantFormModal({
     register,
     handleSubmit,
     reset,
-    watch,
+    control,
     setValue,
     formState: { isSubmitting },
   } = useForm<FormValues>({ defaultValues: defaultsFrom(applicant) });
@@ -153,6 +154,7 @@ export function ApplicantFormModal({
   useEffect(() => {
     if (open) {
       reset(defaultsFrom(applicant));
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setServerError(null);
     }
   }, [open, applicant, reset]);
@@ -161,7 +163,12 @@ export function ApplicantFormModal({
     programsApi.list().then(setPrograms).catch(() => { });
   }, []);
 
-  const watched = watch();
+  // useWatch (вместо watch()) — мемоизируется React Compiler без warning.
+  // Значения всегда заполнены (defaultValues заданы), поэтому приводим к FormValues.
+  const watched = useWatch({
+    control,
+    defaultValue: defaultsFrom(applicant),
+  }) as FormValues;
 
   // Математика база/профиль взаимоисключающи.
   const mathBaseFilled = watched.mathBase.trim() !== "";
@@ -281,8 +288,10 @@ export function ApplicantFormModal({
       if (isEdit && applicant) {
         payload.version = applicant.version;
         await applicantsApi.update(applicant.id, payload);
+        toast.success("Изменения сохранены");
       } else {
         await applicantsApi.create(payload);
+        toast.success("Абитуриент добавлен");
       }
       onSaved();
       onClose();
