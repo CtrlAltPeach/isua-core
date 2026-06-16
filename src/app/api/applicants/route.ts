@@ -121,6 +121,7 @@ export async function POST(req: NextRequest) {
       consentToEnroll: consent,
       documentsComplete: data.documentsComplete ?? false,
       specialQuota: data.specialQuota ?? false,
+      specialRight: data.specialRight ?? false,
       isPaid: data.isPaid ?? false,
       documentType: data.documentType ?? null,
       citizenship: data.citizenship,

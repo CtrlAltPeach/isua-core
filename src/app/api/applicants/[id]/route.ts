@@ -94,6 +94,7 @@ export async function PUT(
     "programId",
     "documentsComplete",
     "specialQuota",
+    "specialRight",
     "isPaid",
     "documentType",
     "citizenship",

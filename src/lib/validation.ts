@@ -67,6 +67,7 @@ const applicantBase = {
   consentToEnroll: z.coerce.boolean().optional(),
   documentsComplete: z.coerce.boolean().optional(),
   specialQuota: z.coerce.boolean().optional(),
+  specialRight: z.coerce.boolean().optional(),
   isPaid: z.coerce.boolean().optional(),
   documentType: z
     .union([z.enum(["diploma", "certificate"]), z.literal(""), z.null()])

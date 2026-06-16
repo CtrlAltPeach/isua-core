@@ -30,6 +30,7 @@ export const FIELD_LABELS: Record<string, string> = {
   consentToEnroll: "Согласие на зачисление",
   documentsComplete: "Документы собраны",
   specialQuota: "Особая квота",
+  specialRight: "Особое право",
   isPaid: "Платное обучение",
   documentType: "Документ об образовании",
   citizenship: "Гражданство",
@@ -80,6 +81,7 @@ export function formatHistoryValue(
       "consentToEnroll",
       "documentsComplete",
       "specialQuota",
+      "specialRight",
       "isPaid",
     ].includes(field)
   ) {

@@ -191,7 +191,8 @@ export default function ReportPage() {
                     <td className="py-1 text-center">
                       {[
                         a.mathBase != null ? "Б" : "",
-                        a.specialQuota ? "О" : "",
+                        a.specialQuota ? "ОК" : "",
+                        a.specialRight ? "ОП" : "",
                         a.isPaid ? "П" : "",
                       ]
                         .filter(Boolean)

@@ -70,6 +70,7 @@ model Applicant {
   consentToEnroll   Boolean @default(false) // согласие на зачисление
   documentsComplete Boolean @default(false)
   specialQuota      Boolean @default(false) // особая квота
+  specialRight      Boolean @default(false) // особое право
   isPaid            Boolean @default(false) // платное обучение
 
   // Документ об образовании и гражданство

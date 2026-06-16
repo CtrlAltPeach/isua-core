@@ -27,6 +27,7 @@ interface FormValues {
   documentsComplete: boolean;
   consentToEnroll: boolean;
   specialQuota: boolean;
+  specialRight: boolean;
   isPaid: boolean;
   documentType: string; // "" | diploma | certificate
   passportSeries: string;
@@ -75,6 +76,7 @@ function defaultsFrom(a: ApplicantWithProgram | null): FormValues {
     documentsComplete: a?.documentsComplete ?? false,
     consentToEnroll: a?.consentToEnroll ?? false,
     specialQuota: a?.specialQuota ?? false,
+    specialRight: a?.specialRight ?? false,
     isPaid: a?.isPaid ?? false,
     documentType: a?.documentType ?? "",
     passportSeries: a?.passportSeries ?? "",
@@ -255,6 +257,7 @@ export function ApplicantFormModal({
       documentsComplete: v.documentsComplete,
       consentToEnroll: v.consentToEnroll,
       specialQuota: v.specialQuota,
+      specialRight: v.specialRight,
       isPaid: v.isPaid,
       documentType: v.documentType || null,
       passportSeries: v.passportSeries.trim() || null,
@@ -408,6 +411,7 @@ export function ApplicantFormModal({
                   : "Недоступно при статусе «Забрал заявление»",
               )}
               {checkbox("specialQuota", "Особая квота")}
+              {checkbox("specialRight", "Особое право")}
               {checkbox("isPaid", "Платное обучение")}
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

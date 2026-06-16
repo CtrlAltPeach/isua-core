@@ -134,6 +134,7 @@ async function seedApplicants(createdByUserId: number) {
         consentToEnroll: consent,
         documentsComplete: Math.random() < 0.6,
         specialQuota: Math.random() < 0.15,
+        specialRight: Math.random() < 0.12,
         isPaid: Math.random() < 0.2,
         documentType: rnd(["diploma", "certificate", null] as const) ?? undefined,
         citizenship: rnd(["Россия", "Россия", "Россия", "Беларусь", "Казахстан"] as const),

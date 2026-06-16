@@ -304,9 +304,17 @@ export function ApplicantTable({
             {a.specialQuota && (
               <span
                 title="Особая квота"
-                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-orange-100 text-xs font-bold text-orange-700"
+                className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-yellow-100 px-1 text-xs font-bold text-yellow-700"
               >
-                О
+                ОК
+              </span>
+            )}
+            {a.specialRight && (
+              <span
+                title="Особое право"
+                className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-200 px-1 text-xs font-bold text-amber-800"
+              >
+                ОП
               </span>
             )}
             {a.isPaid && (

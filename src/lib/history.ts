@@ -13,6 +13,7 @@ export const LOGGED_FIELDS = [
   "consentToEnroll",
   "documentsComplete",
   "specialQuota",
+  "specialRight",
   "isPaid",
   "documentType",
   "citizenship",
