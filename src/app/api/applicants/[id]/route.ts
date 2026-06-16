@@ -5,8 +5,8 @@
 import type { NextRequest } from "next/server";
 import type { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { ok, fail, unauthorized, notFound } from "@/lib/http";
+import { getCurrentUser, requireAdmin } from "@/lib/auth";
+import { ok, fail, unauthorized, forbidden, notFound } from "@/lib/http";
 import { updateApplicantSchema } from "@/lib/validation";
 import { calculateTotalScore, SCORE_FIELDS } from "@/lib/scoring";
 import { normalizeConsent } from "@/lib/applicant-logic";
@@ -234,8 +234,9 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser(req);
-  if (!user) return unauthorized();
+  // Удаление абитуриента — только админ (operator может создавать/редактировать).
+  const admin = await requireAdmin(req);
+  if (!admin) return forbidden();
 
   const id = parseId((await params).id);
   if (!id) return fail("Некорректный id", 400);

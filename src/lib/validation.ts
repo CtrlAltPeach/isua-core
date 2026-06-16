@@ -27,6 +27,9 @@ export const registerSchema = z.object({
   email: z.string().email("Некорректный email"),
   username: z.string().min(2, "Имя пользователя минимум 2 символа").max(50),
   password: z.string().min(8, "Пароль минимум 8 символов").max(100),
+  // Роль нового пользователя (по умолчанию operator). Учитывается только
+  // когда юзера создаёт админ; при bootstrap первого юзера он всегда admin.
+  role: z.enum(["admin", "operator"]).optional(),
 });
 
 export const loginSchema = z.object({

@@ -36,12 +36,21 @@ model Program {
   createdAt  DateTime    @default(now())
 }
 
+// Роль пользователя.
+// admin    — управление юзерами/программами, удаление (доступ к /manage)
+// operator — работа с абитуриентами (CRUD), без /manage и создания юзеров
+enum Role {
+  admin
+  operator
+}
+
 // Пользователь системы (оператор приёмной комиссии).
 model User {
   id           Int         @id @default(autoincrement())
   email        String      @unique
   passwordHash String // bcrypt-хеш, никогда не возвращается в API
   username     String      @unique
+  role         Role        @default(operator)
   createdAt    DateTime    @default(now())
   lastLogin    DateTime?
   applicants   Applicant[] @relation("CreatedBy")

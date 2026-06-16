@@ -12,13 +12,15 @@ const TABS = [
   { href: "/applicants", label: "Абитуриенты" },
   { href: "/programs", label: "Программы" },
   { href: "/statuses", label: "Статусы" },
-  { href: "/manage", label: "Управление" },
+  { href: "/manage", label: "Управление", adminOnly: true },
 ];
 
 export function Header() {
   const pathname = usePathname();
   const { user, logout } = useAuth();
   const timezone = useAppStore((s) => s.timezone);
+  const isAdmin = user?.role === "admin";
+  const tabs = TABS.filter((t) => !t.adminOnly || isAdmin);
 
   return (
     <header className="border-b border-slate-200 bg-white">
@@ -29,7 +31,7 @@ export function Header() {
         </Link>
 
         <nav className="flex items-center gap-1">
-          {TABS.map((tab) => {
+          {tabs.map((tab) => {
             const active =
               tab.href === "/"
                 ? pathname === "/"
@@ -56,8 +58,18 @@ export function Header() {
             {timezone}
           </span>
           {user && (
-            <span className="hidden text-sm text-slate-600 md:inline">
+            <span className="hidden items-center gap-1.5 text-sm text-slate-600 md:inline-flex">
               {user.username}
+              <span
+                className={cn(
+                  "rounded px-1.5 py-0.5 text-xs font-medium",
+                  isAdmin
+                    ? "bg-emerald-100 text-emerald-700"
+                    : "bg-slate-100 text-slate-500",
+                )}
+              >
+                {isAdmin ? "Админ" : "Оператор"}
+              </span>
             </span>
           )}
           <button

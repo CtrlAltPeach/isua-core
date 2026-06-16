@@ -1,8 +1,8 @@
 // /api/programs — GET список, POST создание.
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { ok, fail, unauthorized } from "@/lib/http";
+import { getCurrentUser, requireAdmin } from "@/lib/auth";
+import { ok, fail, unauthorized, forbidden } from "@/lib/http";
 import { programSchema } from "@/lib/validation";
 import { parseMinScores } from "@/lib/thresholds";
 
@@ -32,8 +32,9 @@ export async function GET(req: NextRequest) {
 }
 
 export async function POST(req: NextRequest) {
-  const user = await getCurrentUser(req);
-  if (!user) return unauthorized();
+  // Создавать программы может только админ.
+  const admin = await requireAdmin(req);
+  if (!admin) return forbidden();
 
   const body = await req.json().catch(() => null);
   const parsed = programSchema.safeParse(body);

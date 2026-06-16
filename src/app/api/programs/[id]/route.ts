@@ -2,8 +2,8 @@
 import type { NextRequest } from "next/server";
 import { Prisma } from "@prisma/client";
 import { prisma } from "@/lib/db";
-import { getCurrentUser } from "@/lib/auth";
-import { ok, fail, unauthorized, notFound } from "@/lib/http";
+import { requireAdmin } from "@/lib/auth";
+import { ok, fail, forbidden, notFound } from "@/lib/http";
 import { updateProgramSchema } from "@/lib/validation";
 
 function parseId(raw: string): number | null {
@@ -15,8 +15,8 @@ export async function PUT(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser(req);
-  if (!user) return unauthorized();
+  const admin = await requireAdmin(req);
+  if (!admin) return forbidden();
 
   const id = parseId((await params).id);
   if (!id) return fail("Некорректный id", 400);
@@ -54,8 +54,8 @@ export async function DELETE(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
-  const user = await getCurrentUser(req);
-  if (!user) return unauthorized();
+  const admin = await requireAdmin(req);
+  if (!admin) return forbidden();
 
   const id = parseId((await params).id);
   if (!id) return fail("Некорректный id", 400);

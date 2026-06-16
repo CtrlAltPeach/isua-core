@@ -3,7 +3,7 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 7 завершена — версия 0.7.4)
+## Текущее состояние (итерация 8 завершена — версия 0.8.0)
 
 ### Технологии (фактические — НЕ как в старом плане)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
@@ -16,13 +16,15 @@
 - Состояние: Zustand 5
 - Формы: React Hook Form 7 + Zod 4
 - Аутентификация: bcryptjs + jose (JWT HS256, httpOnly-cookie isua_token)
-  - rate-limit на login (lib/rate-limit.ts), токен только в cookie (не в теле ответа)
+  - rate-limit на login/register (lib/rate-limit.ts), токен только в cookie (не в теле ответа)
+  - Роли admin/operator (lib/auth.ts requireAdmin): деструктивные операции и /manage — admin;
+    регистрация закрыта (только admin создаёт юзеров; bootstrap первого admin на пустой БД)
 - Шифрование ПДн: AES-256-GCM (lib/crypto.ts), поля passport/inn/snils зашифрованы
   в БД, ключ ENCRYPTION_KEY. Шифрование на границе БД (lib/applicant-pii.ts).
 - Рантайм: Node.js (npm), НЕ Bun
 
 ### Структура БД (5 моделей)
-- User: id, email (uniq), username (uniq), passwordHash, createdAt, lastLogin
+- User: id, email (uniq), username (uniq), passwordHash, role (admin|operator), createdAt, lastLogin
 - Program: id, name (uniq), places (количество бюджетных мест), createdAt
 - Applicant:
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
@@ -105,7 +107,7 @@ GET /api/stats/daily
 5 программ, 80+ абитуриентов (seed)
 0 ESLint ошибок
 
-## Что уже сделано (итерации 1–7)
+## Что уже сделано (итерации 1–8)
 - ✅ Backend, авторизация, дашборд, таблица абитуриентов (итер. 1)
 - ✅ Поля абитуриента (паспорт, гражданство, тип документа, особая квота, платное),
      вкладки в карточке, маркеры в таблице (Б/О/П) (итер. 3)
@@ -124,12 +126,19 @@ GET /api/stats/daily
      программы в истории (7G), аудит безопасности (rate-limit login, token не в теле),
      seed с зашифрованными ПДн. ФИО без fade (w-auto+truncate), колонка «Телефон».
 
+- ✅ Итерация 8 (безопасность): роли admin/operator (enum Role, requireAdmin), серверные
+     ограничения на деструктивные операции (programs CRUD, bulk-delete, удаление абитуриента,
+     /api/users — только admin), закрытие публичной регистрации (только admin создаёт юзеров,
+     bootstrap первого admin), UI управления пользователями (UserManager в /manage),
+     rate-limit на register, анти-enumeration в 409. Закрыты A/C/K1/K2 (см. §13 бэклога).
+
 ## Остаточный бэклог (не начато)
 
-### ПРИОРИТЕТ 0: Безопасность (остаточные риски аудита итер. 7)
-- A: /register открыт всем (доступ к ПДн) — закрыть (инвайт/только админ).
-- B: JWT_SECRET и ENCRYPTION_KEY — dev-значения в .env, для прода заменить.
-- C: нет ролей (оператор/админ). Нет серверного middleware.
+### ПРИОРИТЕТ 0: Безопасность (остаток аудита §13)
+- H1: trust-proxy для X-Forwarded-For (rate-limit обходится подделкой заголовка).
+- H2: отзыв JWT (logout не инвалидирует токен) — tokenVersion в User.
+- H3: security-заголовки/CSP (next.config.ts пуст).
+- B: заменить боевые JWT_SECRET/ENCRYPTION_KEY (на пользователе; задокументировано).
 
 ### ПРИОРИТЕТ 1: Инфраструктура БД
 1.1 Пересоздать БД с ICU/русской локалью (initdb с ru-RU и ICU-provider)

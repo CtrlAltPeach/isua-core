@@ -46,12 +46,18 @@ export async function POST(req: NextRequest) {
     sub: String(user.id),
     email: user.email,
     username: user.username,
+    role: user.role,
   });
   await setAuthCookie(token);
 
   // Токен НЕ возвращаем в теле: он уже в httpOnly-cookie. Возврат в JSON
   // провоцировал бы хранение в localStorage (уязвимо к XSS).
   return ok({
-    user: { id: user.id, email: user.email, username: user.username },
+    user: {
+      id: user.id,
+      email: user.email,
+      username: user.username,
+      role: user.role,
+    },
   });
 }

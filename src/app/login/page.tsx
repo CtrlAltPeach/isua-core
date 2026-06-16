@@ -2,7 +2,6 @@
 "use client";
 import { useState } from "react";
 import { useRouter } from "next/navigation";
-import Link from "next/link";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
@@ -80,11 +79,8 @@ export default function LoginPage() {
           </Button>
         </form>
 
-        <p className="mt-6 text-center text-sm text-slate-500">
-          Нет аккаунта?{" "}
-          <Link href="/register" className="font-medium text-slate-900 underline">
-            Регистрация
-          </Link>
+        <p className="mt-6 text-center text-xs text-slate-400">
+          Доступ выдаёт администратор системы
         </p>
       </Card>
     </div>

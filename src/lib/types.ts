@@ -6,7 +6,7 @@ export type { Applicant, Program, History };
 export type ApplicantStatus = "applied" | "withdrawn";
 
 // Публичный профиль пользователя (без passwordHash).
-export type PublicUser = Pick<User, "id" | "email" | "username">;
+export type PublicUser = Pick<User, "id" | "email" | "username" | "role">;
 
 // Абитуриент с присоединённой программой (как возвращает API).
 export type ApplicantWithProgram = Applicant & {

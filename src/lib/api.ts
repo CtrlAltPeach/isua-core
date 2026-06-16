@@ -60,6 +60,38 @@ export const authApi = {
   me: () => request<{ user: PublicUser }>("/auth/me"),
 };
 
+// --- Users (admin) ---
+export interface UserRow {
+  id: number;
+  email: string;
+  username: string;
+  role: "admin" | "operator";
+  createdAt: string;
+  lastLogin: string | null;
+}
+
+export const usersApi = {
+  list: () => request<UserRow[]>("/users"),
+  // Создание юзера админом — через /auth/register (admin-сценарий).
+  create: (
+    email: string,
+    username: string,
+    password: string,
+    role: "admin" | "operator",
+  ) =>
+    request<{ user: PublicUser }>("/auth/register", {
+      method: "POST",
+      body: JSON.stringify({ email, username, password, role }),
+    }),
+  setRole: (id: number, role: "admin" | "operator") =>
+    request<UserRow>(`/users/${id}`, {
+      method: "PATCH",
+      body: JSON.stringify({ role }),
+    }),
+  remove: (id: number) =>
+    request<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
+};
+
 // --- Applicants ---
 export interface ApplicantFilters {
   search?: string;

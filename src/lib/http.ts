@@ -17,4 +17,5 @@ export function fail(
 }
 
 export const unauthorized = () => fail("Требуется авторизация", 401);
+export const forbidden = (msg = "Недостаточно прав") => fail(msg, 403);
 export const notFound = (what = "Ресурс") => fail(`${what} не найден`, 404);

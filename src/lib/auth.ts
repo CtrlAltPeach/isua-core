@@ -26,10 +26,13 @@ function expirySeconds(): number {
   return n * mult;
 }
 
+export type Role = "admin" | "operator";
+
 export interface TokenPayload {
   sub: string; // user id
   email: string;
   username: string;
+  role: Role;
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -45,7 +48,11 @@ export async function verifyPassword(
 
 export async function signToken(payload: TokenPayload): Promise<string> {
   const ttl = expirySeconds();
-  return new SignJWT({ email: payload.email, username: payload.username })
+  return new SignJWT({
+    email: payload.email,
+    username: payload.username,
+    role: payload.role,
+  })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
     .setIssuedAt()
@@ -61,6 +68,8 @@ export async function verifyToken(token: string): Promise<TokenPayload | null> {
       sub: String(payload.sub),
       email: String(payload.email ?? ""),
       username: String(payload.username ?? ""),
+      // Старые токены без role трактуем как operator (наименьшие права).
+      role: payload.role === "admin" ? "admin" : "operator",
     };
   } catch {
     return null;
@@ -95,11 +104,13 @@ export interface AuthUser {
   id: number;
   email: string;
   username: string;
+  role: Role;
 }
 
 /**
  * Возвращает текущего пользователя по токену из запроса, либо null.
- * Проверяет, что пользователь реально существует в БД.
+ * Проверяет, что пользователь реально существует в БД. Роль берётся из БД
+ * (а не из токена), чтобы изменение роли применялось немедленно.
  */
 export async function getCurrentUser(
   req: NextRequest,
@@ -114,7 +125,18 @@ export async function getCurrentUser(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, username: true },
+    select: { id: true, email: true, username: true, role: true },
   });
   return user;
+}
+
+/**
+ * Текущий пользователь, только если он admin; иначе null.
+ * Использовать в admin-only route handlers перед действием.
+ */
+export async function requireAdmin(
+  req: NextRequest,
+): Promise<AuthUser | null> {
+  const user = await getCurrentUser(req);
+  return user && user.role === "admin" ? user : null;
 }
