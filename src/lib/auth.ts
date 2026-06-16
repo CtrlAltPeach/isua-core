@@ -33,6 +33,7 @@ export interface TokenPayload {
   email: string;
   username: string;
   role: Role;
+  ver: number; // версия токена (сверяется с User.tokenVersion для отзыва)
 }
 
 export async function hashPassword(password: string): Promise<string> {
@@ -52,6 +53,7 @@ export async function signToken(payload: TokenPayload): Promise<string> {
     email: payload.email,
     username: payload.username,
     role: payload.role,
+    ver: payload.ver,
   })
     .setProtectedHeader({ alg: "HS256" })
     .setSubject(payload.sub)
@@ -70,6 +72,8 @@ export async function verifyToken(token: string): Promise<TokenPayload | null> {
       username: String(payload.username ?? ""),
       // Старые токены без role трактуем как operator (наименьшие права).
       role: payload.role === "admin" ? "admin" : "operator",
+      // Старые токены без ver → 0 (совпадёт с дефолтным User.tokenVersion).
+      ver: typeof payload.ver === "number" ? payload.ver : 0,
     };
   } catch {
     return null;
@@ -81,7 +85,9 @@ export async function setAuthCookie(token: string): Promise<void> {
   const store = await cookies();
   store.set(TOKEN_COOKIE, token, {
     httpOnly: true,
-    sameSite: "lax",
+    // Strict — сильнее против CSRF для деструктивных операций в ПДн-системе
+    // (M2). Минус: переход по внешней ссылке требует повторного запроса страницы.
+    sameSite: "strict",
     secure: process.env.NODE_ENV === "production",
     path: "/",
     maxAge: expirySeconds(),
@@ -125,9 +131,23 @@ export async function getCurrentUser(
 
   const user = await prisma.user.findUnique({
     where: { id: userId },
-    select: { id: true, email: true, username: true, role: true },
+    select: {
+      id: true,
+      email: true,
+      username: true,
+      role: true,
+      tokenVersion: true,
+    },
   });
-  return user;
+  if (!user) return null;
+
+  // Отзыв токена (H2): версия в токене должна совпадать с текущей в БД.
+  // После logout/смены пароля tokenVersion инкрементится → старые токены невалидны.
+  if (payload.ver !== user.tokenVersion) return null;
+
+  const { tokenVersion: _ver, ...authUser } = user;
+  void _ver;
+  return authUser;
 }
 
 /**

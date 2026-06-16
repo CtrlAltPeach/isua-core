@@ -22,7 +22,6 @@ import {
   ArrowDown,
   Check,
   AlertTriangle,
-  StickyNote,
   Loader2,
 } from "lucide-react";
 import {
@@ -328,9 +327,9 @@ export function ApplicantTable({
             {a.notes && (
               <span
                 title={a.notes}
-                className="inline-flex shrink-0 text-amber-500"
+                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-amber-100 text-xs font-bold text-amber-700"
               >
-                <StickyNote className="size-3.5" />
+                З
               </span>
             )}
           </span>

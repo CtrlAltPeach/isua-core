@@ -86,11 +86,11 @@ const applicantBase = {
   physics: scoreField,
   informatics: scoreField,
   geography: scoreField,
-  // Доп. баллы / ВИ: целое ≥0, без верхней границы (может поднять итог >300).
-  // Пусто/null → 0.
+  // Доп. баллы / ВИ: целое 0..100 (M5 — верхняя граница против опечатки/
+  // злоупотребления). Может поднять итог >300. Пусто/null → 0.
   additionalScores: z.preprocess(
     (v) => (v === "" || v === null || v === undefined ? 0 : v),
-    z.coerce.number().int().min(0),
+    z.coerce.number().int().min(0).max(100, "Доп. баллы не более 100"),
   ),
   registrationAddress: optionalString,
   inn: optionalString,

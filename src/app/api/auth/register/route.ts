@@ -14,7 +14,7 @@ import {
 } from "@/lib/auth";
 import { registerSchema } from "@/lib/validation";
 import { ok, fail, forbidden } from "@/lib/http";
-import { checkRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -36,10 +36,7 @@ export async function POST(req: NextRequest) {
   } else {
     // Bootstrap-эндпоинт публичен (создание первого админа) — лимитируем,
     // чтобы его нельзя было обстреливать. По IP, 5 попыток за 15 минут.
-    const ip =
-      req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-      req.headers.get("x-real-ip") ||
-      "local";
+    const ip = getClientIp(req);
     const rl = checkRateLimit(`register:${ip}`, 5, 15 * 60 * 1000);
     if (!rl.allowed) {
       return fail(
@@ -82,6 +79,7 @@ export async function POST(req: NextRequest) {
       email: user.email,
       username: user.username,
       role: user.role,
+      ver: 0, // только что создан → tokenVersion = 0
     });
     await setAuthCookie(token);
   }

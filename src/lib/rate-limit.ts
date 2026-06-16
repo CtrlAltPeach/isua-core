@@ -4,6 +4,7 @@
 //
 // Использование: const r = checkRateLimit(key); if (!r.allowed) ... 429.
 // При успешной операции можно вызвать resetRateLimit(key).
+import type { NextRequest } from "next/server";
 
 interface Bucket {
   count: number;
@@ -62,3 +63,26 @@ const cleanup = setInterval(() => {
   }
 }, 10 * 60 * 1000);
 if (typeof cleanup === "object" && "unref" in cleanup) cleanup.unref();
+
+/**
+ * Клиентский IP для rate-limit с учётом доверенности прокси (H1).
+ *
+ * Проблема: `x-forwarded-for` клиент может подделать → обойти лимит.
+ * Решение по приоритету:
+ *  1) `x-vercel-forwarded-for` — проставляется инфраструктурой Vercel,
+ *     извне не подделывается (доверенный на Vercel).
+ *  2) Если задан TRUST_PROXY=1 (за известным reverse-proxy) — берём ПЕРВЫЙ
+ *     элемент `x-forwarded-for` (реальный клиент перед нашим прокси).
+ *  3) Иначе XFF не доверяем; используем `x-real-ip` или "unknown".
+ */
+export function getClientIp(req: NextRequest): string {
+  const vercel = req.headers.get("x-vercel-forwarded-for");
+  if (vercel) return vercel.split(",")[0].trim();
+
+  if (process.env.TRUST_PROXY === "1") {
+    const xff = req.headers.get("x-forwarded-for");
+    if (xff) return xff.split(",")[0].trim();
+  }
+
+  return req.headers.get("x-real-ip") || "unknown";
+}

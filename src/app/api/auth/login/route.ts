@@ -4,7 +4,7 @@ import { prisma } from "@/lib/db";
 import { verifyPassword, signToken, setAuthCookie } from "@/lib/auth";
 import { loginSchema } from "@/lib/validation";
 import { ok, fail } from "@/lib/http";
-import { checkRateLimit, resetRateLimit } from "@/lib/rate-limit";
+import { checkRateLimit, resetRateLimit, getClientIp } from "@/lib/rate-limit";
 
 export async function POST(req: NextRequest) {
   const body = await req.json().catch(() => null);
@@ -15,10 +15,8 @@ export async function POST(req: NextRequest) {
   const { email, password } = parsed.data;
 
   // Защита от перебора: лимит попыток по IP+email (10 за 15 минут).
-  const ip =
-    req.headers.get("x-forwarded-for")?.split(",")[0].trim() ||
-    req.headers.get("x-real-ip") ||
-    "local";
+  // IP берём с учётом доверенности прокси (H1).
+  const ip = getClientIp(req);
   const rlKey = `login:${ip}:${email.toLowerCase()}`;
   const rl = checkRateLimit(rlKey, 10, 15 * 60 * 1000);
   if (!rl.allowed) {
@@ -47,6 +45,7 @@ export async function POST(req: NextRequest) {
     email: user.email,
     username: user.username,
     role: user.role,
+    ver: user.tokenVersion,
   });
   await setAuthCookie(token);
 

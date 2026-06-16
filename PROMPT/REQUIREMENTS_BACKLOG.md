@@ -400,6 +400,27 @@ history-modal подтягивает программы и резолвит prog
 
 ---
 
+## 10-quinquies. Итерация 10 (СДЕЛАНО — безопасность H/M/L, 2026-06-17, ветка dev)
+
+Тема: высокие и средние находки security-аудита §13. Закрыты H1, H2, H3, M2, M5, L4.
+
+- [x] **H3 security-заголовки/CSP:** next.config.ts headers() — CSP (умеренный), HSTS,
+  X-Content-Type-Options=nosniff, X-Frame-Options=DENY, Referrer-Policy, Permissions-Policy.
+  CSP без nonce ('unsafe-inline' для Next inline) — не ломает рендер (0 CSP-ошибок).
+- [x] **H2 отзыв токена:** User.tokenVersion (миграция add_token_version), claim `ver` в JWT,
+  сверка в getCurrentUser, logout инкрементит → отзыв всех токенов. Старый токен после logout = 401.
+- [x] **H1 trust-proxy:** getClientIp() — x-vercel-forwarded-for (Vercel), либо XFF при
+  TRUST_PROXY=1, либо x-real-ip. Применён в login/register. Защита rate-limit от подделки IP.
+- [x] **M2 SameSite=Strict** для auth-cookie. **M5 cap** additionalScores ≤100.
+- [x] **L4** демо-админ не сеется на проде без SEED_ADMIN_PASSWORD. .env.example: TRUST_PROXY,
+  SEED_ADMIN_PASSWORD задокументированы.
+- E2E-проверено (fetch+Playwright): все заголовки, отзыв токена, SameSite=Strict, cap M5, рендер с CSP.
+- **Остаётся из §13:** M1 (rate-limit→Redis при масштабировании), M3 (ротация ключа шифрования
+  enc:v2 — связано с прошлой болью пользователя про ENCRYPTION_KEY), M4 (KMS), L1/L2/L3/L5/L6.
+  Полноценный nonce-CSP. Это можно отложить (для текущего масштаба некритично).
+
+---
+
 ## 11. Tracking: Что сделано
 
 ✅ = сделано  
@@ -436,10 +457,11 @@ history-modal подтягивает программы и резолвит prog
 | Безопасность C: нет ролей | ✅ | 8 | роли admin/operator: enum Role, requireAdmin, UI-гард /manage, UserManager |
 | **K1. Мутации без контроля доступа (ролей)** | ✅ | 8 | bulk-delete/programs CRUD/delete абитуриента — только admin (requireAdmin) |
 | **K2. Регистрация: нет rate-limit + enumeration** | ✅ | 8 | bootstrap-register под rate-limit (5/15мин по IP); 409 — единое сообщение |
-| **H1. Обход rate-limit через X-Forwarded-For** | ❌ | аудит | IP из XFF без trust-proxy. См. §13 |
-| **H2. JWT не отзывается, logout не инвалидирует** | ❌ | аудит | токен живёт 24ч; Bearer принимается. См. §13 |
-| **H3. Нет security headers / CSP** | ❌ | аудит | next.config пуст. См. §13 |
-| **M1–M5, L1–L6** | ❌ | аудит | см. полный список в §13 |
+| **H1. Обход rate-limit через X-Forwarded-For** | ✅ | 10 | getClientIp: x-vercel-forwarded-for/TRUST_PROXY |
+| **H2. JWT не отзывается, logout не инвалидирует** | ✅ | 10 | tokenVersion + claim ver; logout отзывает токены |
+| **H3. Нет security headers / CSP** | ✅ | 10 | next.config headers(): CSP/HSTS/XFO/nosniff/Referrer/Permissions |
+| **M2 SameSite=Strict, M5 cap, L4 демо-админ** | ✅ | 10 | см. §13 / раздел 10-quinquies |
+| **M1, M3, M4, L1-L3, L5-L6** | ❌ | аудит | остаток §13 (Redis, ротация ключа, KMS, nonce-CSP) |
 | 7D. Превью заметки в таблице + редизайн | ✅ | 7 | раскрывающаяся строка-деталь; 13→9 колонок; иконка заметки |
 | 7E. Мобильный интерфейс | ❌ | дальше | адаптив, карточный режим таблицы — отложено |
 | 7F. Авто-обновление таблицы (polling) | ✅ | 7 | тихий polling 20с в applicant-table (load(silent)) |
@@ -507,43 +529,40 @@ history-modal подтягивает программы и резолвит prog
 
 ### 🟠 Высокое
 
-- [ ] **H1. Обход rate-limit через подделку `X-Forwarded-For`.** IP для лимита берётся из
-  `x-forwarded-for` без проверки доверенности прокси → клиент сам подставляет заголовок,
-  меняя ключ счётчика → brute-force/flood без ограничений. `login/route.ts:18-23`.
-  - **Фикс:** доверять `XFF` только за известным reverse-proxy (trust-proxy / первый доверенный hop).
+- [x] **H1. Обход rate-limit через подделку `X-Forwarded-For`.** ✅ ИТЕР.10 — getClientIp()
+  в lib/rate-limit.ts: на Vercel доверяет x-vercel-forwarded-for (не подделать извне);
+  x-forwarded-for только при TRUST_PROXY=1 (за известным reverse-proxy); иначе x-real-ip.
+  Применён в login/register.
 
-- [ ] **H2. JWT нельзя отозвать; logout не инвалидирует токен.** Токен stateless, валиден
-  до истечения (по умолч. 24ч). Logout лишь стирает cookie, но API принимает
-  `Authorization: Bearer` → украденный токен живёт сутки даже после logout/смены пароля.
-  Нет blacklist/ротации. `auth.ts:88-92`, `logout/route.ts`.
-  - **Фикс:** `tokenVersion` в `User` (инкремент при logout/password-change → сверка в
-    `getCurrentUser`); либо short-lived access + refresh; либо redis-blacklist.
+- [x] **H2. JWT нельзя отозвать; logout не инвалидирует токен.** ✅ ИТЕР.10 — поле
+  User.tokenVersion (миграция add_token_version); claim `ver` в JWT; getCurrentUser сверяет
+  ver с tokenVersion (несовпадение → 401); logout инкрементит tokenVersion → отзывает ВСЕ
+  токены юзера. E2E-проверено: старый токен после logout = 401.
 
-- [ ] **H3. Нет security-заголовков и CSP.** `next.config.ts` пуст — нет
-  `Content-Security-Policy`, `Strict-Transport-Security`, `Referrer-Policy`,
-  `Permissions-Policy`. Для ПДн-системы — обязательный слой против XSS-эскалации/clickjacking.
-  - **Фикс:** добавить `headers()` в `next.config.ts`; CSP начать с report-only.
+- [x] **H3. Нет security-заголовков и CSP.** ✅ ИТЕР.10 — next.config.ts headers(): CSP
+  (умеренный, без nonce — script/style 'unsafe-inline' для Next.js inline; полноценный
+  nonce-CSP отложен), HSTS, X-Content-Type-Options, X-Frame-Options=DENY, Referrer-Policy,
+  Permissions-Policy. E2E: заголовки на месте, 0 CSP-ошибок в консоли.
 
 ### 🟡 Среднее
 
 - [ ] **M1. Rate-limiter in-memory** — не переживёт горизонтальное масштабирование (лимит × N
   инстансов). `lib/rate-limit.ts`. **Фикс:** Redis/БД-backed limiter перед выкаткой в реплики.
-- [ ] **M2. `SameSite=Lax`** — основная CSRF закрыта, но для деструктивных операций в ПДн-системе
-  лучше `SameSite=Strict` и/или CSRF-token. `auth.ts:74`.
+- [x] **M2. `SameSite=Lax` → `Strict`.** ✅ ИТЕР.10 — auth-cookie теперь SameSite=Strict (auth.ts).
 - [ ] **M3. Нет ротации ключа шифрования ПДн.** Префикс `enc:v1:` есть, но `v2` нет; смена
   `ENCRYPTION_KEY` = потеря всех ПДн (связано с п. B). `lib/crypto.ts`. **Фикс:** `enc:v2:` +
   dual-key decrypt (текущий, затем предыдущий), фоновая миграция.
 - [ ] **M4. `ENCRYPTION_KEY` — боевой ключ plain-text в `.env`** рядом с проектом. В `.gitignore`
   (хорошо), но без KMS/secret-manager. Для прода — хранилище секретов (Vault/KMS).
-- [ ] **M5. `additionalScores` без верхней границы** (`validation.ts`). Не security per se, но
-  риск ошибки/злоупотребления. Рассмотреть cap.
+- [x] **M5. `additionalScores` cap.** ✅ ИТЕР.10 — верхняя граница 100 в validation.ts (.max(100)).
 
 ### 🟢 Низкое / рекомендации
 
 - [ ] **L1.** В JWT нет `iss`/`aud` claims (`auth.ts`) — добавить при появлении второго сервиса.
 - [ ] **L2.** Пароль только ≥8 символов, без сложности/проверки по словарю утёкших.
 - [ ] **L3.** `parsed.error.flatten()` уходит в `details` клиенту — для прода не раскрывать внутренности.
-- [ ] **L4.** Демо-аккаунт `admin@isua.local/admin12345` в seed (`prisma/seed.ts`) — на проде форсировать смену / не сеять.
+- [x] **L4.** ✅ ИТЕР.10 — seed НЕ создаёт демо-админа на проде (NODE_ENV=production) без
+  переменной SEED_ADMIN_PASSWORD; с ней — создаёт с заданным паролем. В dev — как раньше (admin12345).
 - [ ] **L5.** Серверного middleware нет (auth в каждом route + клиентский guard) — middleware надёжнее (известно).
 - [ ] **L6.** Тихий polling 20с — учитывать в нагрузке; при росте → SSE.
 

@@ -51,6 +51,8 @@ model User {
   passwordHash String // bcrypt-хеш, никогда не возвращается в API
   username     String      @unique
   role         Role        @default(operator)
+  // Версия токена: инкремент при logout/смене пароля отзывает все прежние JWT.
+  tokenVersion Int         @default(0)
   createdAt    DateTime    @default(now())
   lastLogin    DateTime?
   applicants   Applicant[] @relation("CreatedBy")

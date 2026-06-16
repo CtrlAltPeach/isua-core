@@ -3,7 +3,7 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 9 завершена — версия 0.9.0, ветка dev)
+## Текущее состояние (итерация 10 завершена — версия 0.10.0, ветка dev)
 > Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
 > Преview-деплой использует dev-БД (см. PROMPT/DATABASE_ENVIRONMENTS.md).
 
@@ -18,15 +18,17 @@
 - Состояние: Zustand 5
 - Формы: React Hook Form 7 + Zod 4
 - Аутентификация: bcryptjs + jose (JWT HS256, httpOnly-cookie isua_token)
-  - rate-limit на login/register (lib/rate-limit.ts), токен только в cookie (не в теле ответа)
+  - rate-limit на login/register (lib/rate-limit.ts, getClientIp с trust-proxy), cookie SameSite=Strict
+  - токен только в cookie; отзыв через User.tokenVersion (logout инкрементит → старые JWT невалидны)
   - Роли admin/operator (lib/auth.ts requireAdmin): деструктивные операции и /manage — admin;
     регистрация закрыта (только admin создаёт юзеров; bootstrap первого admin на пустой БД)
+  - Security-заголовки/CSP в next.config.ts (H3)
 - Шифрование ПДн: AES-256-GCM (lib/crypto.ts), поля passport/inn/snils зашифрованы
   в БД, ключ ENCRYPTION_KEY. Шифрование на границе БД (lib/applicant-pii.ts).
 - Рантайм: Node.js (npm), НЕ Bun
 
 ### Структура БД (5 моделей)
-- User: id, email (uniq), username (uniq), passwordHash, role (admin|operator), createdAt, lastLogin
+- User: id, email (uniq), username (uniq), passwordHash, role (admin|operator), tokenVersion (отзыв JWT), createdAt, lastLogin
 - Program: id, name (uniq), places (количество бюджетных мест), createdAt
 - Applicant:
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
@@ -109,7 +111,7 @@ GET /api/stats/daily
 5 программ, 80+ абитуриентов (seed)
 0 ESLint ошибок
 
-## Что уже сделано (итерации 1–9)
+## Что уже сделано (итерации 1–10)
 - ✅ Backend, авторизация, дашборд, таблица абитуриентов (итер. 1)
 - ✅ Поля абитуриента (паспорт, гражданство, тип документа, особая квота, платное),
      вкладки в карточке, маркеры в таблице (Б/О/П) (итер. 3)
@@ -139,13 +141,16 @@ GET /api/stats/daily
      МСК=UTC+3); toast вместо alert/confirm (lib/toast + Toaster, lib/confirm + ConfirmDialog);
      техдолг RHF watch()→useWatch (ESLint 0 проблем); документация сред БД
      (PROMPT/DATABASE_ENVIRONMENTS.md — preview-БД для dev).
+- ✅ Итерация 10 (безопасность H/M/L): security-заголовки/CSP (next.config.ts, H3);
+     отзыв JWT через tokenVersion + logout (H2); trust-proxy getClientIp (H1);
+     SameSite=Strict (M2); cap additionalScores≤100 (M5); демо-админ не на проде (L4).
 
 ## Остаточный бэклог (не начато)
 
 ### ПРИОРИТЕТ 0: Безопасность (остаток аудита §13)
-- H1: trust-proxy для X-Forwarded-For (rate-limit обходится подделкой заголовка).
-- H2: отзыв JWT (logout не инвалидирует токен) — tokenVersion в User.
-- H3: security-заголовки/CSP (next.config.ts пуст).
+- M1: rate-limit in-memory → Redis при горизонтальном масштабировании.
+- M3: ротация ключа шифрования (enc:v2 + dual-key) — связано с болью про ENCRYPTION_KEY.
+- M4: ENCRYPTION_KEY в KMS/Vault (сейчас env). L1-L3, L5-L6, nonce-CSP — мелкие.
 - B: заменить боевые JWT_SECRET/ENCRYPTION_KEY (на пользователе; задокументировано).
 
 ### ПРИОРИТЕТ 1: Инфраструктура БД

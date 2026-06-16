@@ -26,9 +26,24 @@ async function main() {
   }
   console.log(`Программы: ${PROGRAMS.length} шт.`);
 
-  // Демо-пользователь для входа и привязки createdBy.
+  // Демо-админ + тестовые абитуриенты — НЕ создаём на проде с дефолтным паролем
+  // (L4). Создаём, если:
+  //   - не production (локальная разработка), ИЛИ
+  //   - явно задан SEED_ADMIN_PASSWORD (тогда используем его, а не дефолт).
+  const isProd = process.env.NODE_ENV === "production";
+  const customPassword = process.env.SEED_ADMIN_PASSWORD;
+
+  if (isProd && !customPassword) {
+    console.log(
+      "Прод без SEED_ADMIN_PASSWORD: демо-админ и тестовые данные НЕ создаются.\n" +
+        "Создайте первого админа через /register (bootstrap) или задайте SEED_ADMIN_PASSWORD.",
+    );
+    return;
+  }
+
   const demoEmail = "admin@isua.local";
-  const passwordHash = await bcrypt.hash("admin12345", 10);
+  const password = customPassword ?? "admin12345";
+  const passwordHash = await bcrypt.hash(password, 10);
   const admin = await prisma.user.upsert({
     where: { email: demoEmail },
     update: { role: "admin" },
@@ -39,7 +54,9 @@ async function main() {
       role: "admin",
     },
   });
-  console.log(`Демо-пользователь: ${demoEmail} / admin12345`);
+  console.log(
+    `Админ: ${demoEmail}` + (customPassword ? "" : " / admin12345 (dev)"),
+  );
 
   // Тестовые абитуриенты (только если их ещё нет).
   const existing = await prisma.applicant.count();
