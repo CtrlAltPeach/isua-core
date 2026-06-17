@@ -1,36 +1,126 @@
-This is a [Next.js](https://nextjs.org) project bootstrapped with [`create-next-app`](https://nextjs.org/docs/app/api-reference/cli/create-next-app).
+# ИСУА — учёт абитуриентов вуза
 
-## Getting Started
+Информационная система учёта абитуриентов приёмной комиссии: ведение карточек
+абитуриентов, расчёт баллов и конкурса, статусы заявлений, дашборд с аналитикой,
+управление программами и пользователями, журнал изменений и PDF-отчёт.
 
-First, run the development server:
+Интерфейс — русскоязычный, адаптивный (десктоп и мобильный).
+
+## Стек
+
+- **Next.js 16** (App Router, `src/`, Turbopack) + **React 19** + **TypeScript 5**
+- **PostgreSQL** + **Prisma 6** (ORM)
+- **Tailwind CSS 4**, иконки Lucide, состояние — Zustand 5
+- Формы — React Hook Form 7 + Zod 4
+- Аутентификация — JWT (jose, HS256) в httpOnly-cookie + bcryptjs
+- ПДн (паспорт/ИНН/СНИЛС) шифруются в БД (AES-256-GCM)
+- Тесты — Vitest
+
+## Требования
+
+- Node.js 20+
+- PostgreSQL 17, **созданный с ICU-локалью `ru-RU`** — иначе регистронезависимый
+  поиск по кириллице не работает (см. ниже и `PROMPT/DATABASE_ENVIRONMENTS.md`).
+
+## Быстрый старт (локально)
 
 ```bash
-npm run dev
-# or
-yarn dev
-# or
-pnpm dev
-# or
-bun dev
+# 1. Зависимости
+npm install
+
+# 2. Переменные окружения
+cp .env.example .env
+#   заполните DATABASE_URL, JWT_SECRET, ENCRYPTION_KEY (подсказки по генерации — в .env.example)
+
+# 3. Схема БД
+npx prisma migrate deploy
+npx prisma generate
+
+# 4. (опц.) тестовые данные: 4 программы, 60 абитуриентов, демо-админ
+npm run db:seed
+
+# 5. Запуск
+npm run dev   # http://localhost:3000
 ```
 
-Open [http://localhost:3000](http://localhost:3000) with your browser to see the result.
+Демо-вход после сидинга: `admin@isua.local` / `admin12345`.
 
-You can start editing the page by modifying `app/page.tsx`. The page auto-updates as you edit the file.
+> Первый пользователь на пустой БД становится администратором (страница `/register`).
+> Дальше новых пользователей создаёт только админ (раздел «Управление»).
 
-This project uses [`next/font`](https://nextjs.org/docs/app/building-your-application/optimizing/fonts) to automatically optimize and load [Geist](https://vercel.com/font), a new font family for Vercel.
+## База данных: ICU-локаль (важно)
 
-## Learn More
+База должна быть создана с провайдером локали ICU и локалью `ru-RU`:
 
-To learn more about Next.js, take a look at the following resources:
+```sql
+CREATE DATABASE isua
+  TEMPLATE template0 ENCODING 'UTF8'
+  LOCALE_PROVIDER icu ICU_LOCALE 'ru-RU' LOCALE 'C';
+```
 
-- [Next.js Documentation](https://nextjs.org/docs) - learn about Next.js features and API.
-- [Learn Next.js](https://nextjs.org/learn) - an interactive Next.js tutorial.
+Проверка (`datlocprovider` должен быть `i`, тест должен вернуть `true`):
 
-You can check out [the Next.js GitHub repository](https://github.com/vercel/next.js) - your feedback and contributions are welcome!
+```sql
+SELECT datname, datlocprovider, datlocale FROM pg_database WHERE datname = 'isua';
+SELECT 'ПЕТРОВ' ILIKE '%петр%';
+```
 
-## Deploy on Vercel
+Локальный portable-PostgreSQL и пошаговая миграция C-locale → ICU описаны в
+`PROMPT/DATABASE_ENVIRONMENTS.md`.
 
-The easiest way to deploy your Next.js app is to use the [Vercel Platform](https://vercel.com/new?utm_medium=default-template&filter=next.js&utm_source=create-next-app&utm_campaign=create-next-app-readme) from the creators of Next.js.
+## Скрипты
 
-Check out our [Next.js deployment documentation](https://nextjs.org/docs/app/building-your-application/deploying) for more details.
+| Команда | Назначение |
+|---|---|
+| `npm run dev` | Dev-сервер (Turbopack) |
+| `npm run build` | Прод-сборка |
+| `npm start` | Запуск прод-сборки |
+| `npm run lint` | ESLint |
+| `npm test` | Unit + интеграционные тесты (Vitest) |
+| `npm run db:migrate` | `prisma migrate dev` (создать миграцию) |
+| `npm run db:seed` | Сидинг тестовых данных |
+| `npm run db:studio` | Prisma Studio |
+
+## Переменные окружения
+
+Описаны в `.env.example`. Ключевые:
+
+- `DATABASE_URL` — строка подключения к PostgreSQL.
+- `JWT_SECRET`, `JWT_EXPIRY` — подпись и срок жизни токена.
+- `ENCRYPTION_KEY` — 32 байта (hex) для AES-256-GCM. ⚠️ При смене ключа ранее
+  зашифрованные ПДн становятся нечитаемыми — храните как пароль от БД.
+- `TRUST_PROXY` — доверять `X-Forwarded-For` (только за известным reverse-proxy).
+- `SEED_ADMIN_PASSWORD` — пароль демо-админа при сидинге на проде.
+
+## Тесты
+
+```bash
+npm test            # одноразовый прогон
+npm run test:watch  # watch-режим
+```
+
+Покрытие: расчёт баллов, бизнес-логика согласий, шифрование, журнал изменений,
+таймзоны, retry клиентской fetch-обёртки, интеграционные тесты API-роутов
+(`/api/applicants`, `/api/programs`).
+
+## Деплой (Vercel)
+
+- Переменные окружения задаются в Vercel (Settings → Environment Variables),
+  раздельно для Production / Preview — файл `.env` на хостинге не читается.
+- Миграции Vercel **не** запускает автоматически: накатывать вручную
+  `DATABASE_URL=<url> npx prisma migrate deploy`.
+- Ветка `main` → Production, `dev` → Preview (разные БД).
+
+Подробности — `PROMPT/DATABASE_ENVIRONMENTS.md`.
+
+## Структура
+
+```
+src/
+  app/          — страницы (App Router) и API-роуты (app/api/**)
+  components/   — UI-компоненты
+  lib/          — бизнес-логика, утилиты, клиентский API, тесты
+  hooks/        — React-хуки
+prisma/         — schema.prisma, миграции, seed
+PROMPT/         — рабочая документация (контекст, бэклог, среды БД)
+```

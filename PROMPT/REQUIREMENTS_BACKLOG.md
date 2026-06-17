@@ -433,6 +433,34 @@ history-modal подтягивает программы и резолвит prog
 
 ---
 
+## 10-sexies. Итерация 11 (СДЕЛАНО — мобильный интерфейс, 2026-06-17, ветка dev)
+
+Тема: mobile-first адаптив (один layout). Закрыт 7E. Версии 0.11.0 + патч 0.11.1.
+
+- [x] Нижняя панель-таб-бар (4 иконки + «Ещё») на <lg; верхняя навигация на ≥lg (граница md→lg).
+- [x] Карточный режим таблицы абитуриентов на <lg (общие Markers/ApplicantDetails); убран гор. скролл.
+- [x] Адаптив форм/модалок/сеток; Kanban стекается вертикально.
+- [x] Патч 0.11.1: CSP 'unsafe-eval' только в dev; фикс зазора header/main и перекрытия nav;
+  дата в карточке на уровне «История»; иконка-кнопка удаления в /manage; heartbeat стоп при 401.
+- Проверено Playwright 375/768/1280 — гор. скролла нет.
+
+## 10-septies. Итерация 12 (СДЕЛАНО — инфра БД + надёжность, 2026-06-18, ветка dev)
+
+Тема: 12A (ICU-локаль) + 12C (полировка надёжности). Версия 0.12.0.
+
+- [x] **12A ICU-локаль БД:** локальная БД пересоздана с LOCALE_PROVIDER icu / ICU_LOCALE 'ru-RU'
+  (dump → новая БД → restore → swap; старая C-locale сохранена как isua_c_backup). COLLATE-костыль
+  в applicants GET убран → обычный Prisma OR + contains + mode:"insensitive". Поиск по кириллице
+  регистронезависим из коробки. PROMPT/DATABASE_ENVIRONMENTS.md дополнен инструкцией для прод/dev.
+- [x] **12C retry/переподключение:** lib/api.ts — до 3 попыток с backoff (300/900мс) для GET/HEAD
+  при сетевой ошибке и 502/503/504; POST/PUT/DELETE НЕ повторяются; сетевой сбой → ApiError status 0.
+- [x] **12C интеграционные тесты:** /api/applicants GET (auth/where/поиск/пагинация, 8 тестов),
+  /api/programs POST (admin/валидация/дубликат, 4 теста), retry-обёртка (7 тестов). Всего 55 (было 36).
+- [x] **12C README:** заполнен (стек, запуск, ICU-БД, env, скрипты, тесты, деплой) вместо boilerplate.
+- build + lint(0 проблем) чисто.
+
+---
+
 ## 11. Tracking: Что сделано
 
 ✅ = сделано  
@@ -473,7 +501,11 @@ history-modal подтягивает программы и резолвит prog
 | Toast вместо alert/confirm | ✅ | 9 | lib/toast + Toaster; lib/confirm + ConfirmDialog (3 confirm заменены) |
 | Техдолг: RHF watch() → useWatch | ✅ | 9 | ушёл warning incompatible-library; ESLint 0 проблем |
 | Инфра: preview-БД для dev | ✅ | 9 | PROMPT/DATABASE_ENVIRONMENTS.md (разные DATABASE_URL по средам) |
-| 5.3 Retry/переподключение | ❌ | дальше | при потере соединения |
+| Мобильный интерфейс (7E) | ✅ | 11 | tab-bar <lg, карточный режим таблицы; Playwright 375/768/1280 |
+| 1.1 ICU-локаль БД | ✅ | 12 | БД пересоздана с ICU ru-RU; COLLATE-костыль убран → Prisma mode:insensitive |
+| 5.3 Retry/переподключение | ✅ | 12 | lib/api.ts: 3 попытки/backoff для GET при сетевой ошибке и 5xx |
+| 5.4 Интеграционные тесты API | ✅ | 12 | /api/applicants, /api/programs + retry; всего 55 тестов |
+| 5.5 README | ✅ | 12 | заполнен (стек/запуск/ICU/env/тесты/деплой) |
 
 ---
 

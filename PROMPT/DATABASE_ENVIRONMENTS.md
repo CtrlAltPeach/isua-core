@@ -64,7 +64,57 @@ PRISMA_USER_CONSENT_FOR_DANGEROUS_AI_ACTION="Yes" \
   npx prisma migrate reset --force --skip-seed
 ```
 
-## Накопленные миграции (на 2026-06-17)
+## Локаль БД: ICU ru-RU (12A) — ВАЖНО при создании любой новой базы
+
+С итерации 12A база ИСУА должна создаваться с **ICU-локалью `ru-RU`**, иначе
+регистронезависимый поиск по кириллице (`ILIKE` / Prisma `mode:"insensitive"`)
+не сворачивает регистр русских букв (БД в C-locale → «ПЕТРОВ» не найдётся по «петр»).
+Локаль — свойство БАЗЫ, не схемы: миграции Prisma её НЕ задают, задаётся при `CREATE DATABASE`.
+
+**Новая база (managed-провайдер: Neon/Supabase/…):** создавать БД с ICU ru-RU.
+Если провайдер не даёт указать локаль в UI — выполнить SQL под суперпользователем:
+
+```sql
+CREATE DATABASE isua
+  TEMPLATE template0 ENCODING 'UTF8'
+  LOCALE_PROVIDER icu ICU_LOCALE 'ru-RU' LOCALE 'C';
+```
+
+(Neon: при создании проекта выбрать locale provider = ICU, locale = ru-RU; либо
+создать БД отдельным `CREATE DATABASE …` как выше.) Затем обычный цикл:
+`migrate deploy` → (опц.) `db:seed`.
+
+**Проверка, что локаль верная** (provider должен быть `i`, datlocale = `ru-RU`):
+
+```sql
+SELECT datname, datlocprovider, datlocale FROM pg_database WHERE datname='isua';
+-- быстрый тест: должно вернуть true
+SELECT 'ПЕТРОВ' ILIKE '%петр%';
+```
+
+**Локальный portable-кластер (как сделано в 12A):** кластер остаётся в C-locale
+(template0/1 не трогаем — это безопаснее и не задевает чужой PG КОМПАС-3D на :5433),
+но саму БД `isua` пересоздали с ICU. Процедура (для воспроизведения/отката):
+
+```bash
+PG="$LOCALAPPDATA/isua-pg/pgsql/bin"; export PGPASSWORD=postgres
+# 1) бэкап
+"$PG/pg_dump.exe" -U postgres -h 127.0.0.1 -p 5432 -d isua -Fc -f isua.dump
+# 2) новая БД с ICU ru-RU
+"$PG/psql.exe" -U postgres -h 127.0.0.1 -p 5432 -d postgres -c \
+  "CREATE DATABASE isua_icu TEMPLATE template0 ENCODING 'UTF8' LOCALE_PROVIDER icu ICU_LOCALE 'ru-RU' LOCALE 'C';"
+# 3) restore данных
+"$PG/pg_restore.exe" -U postgres -h 127.0.0.1 -p 5432 -d isua_icu --no-owner isua.dump
+# 4) swap имён (нет активных соединений!): старую сохраняем как бэкап
+"$PG/psql.exe" -U postgres -h 127.0.0.1 -p 5432 -d postgres -c \
+  "ALTER DATABASE isua RENAME TO isua_c_backup; ALTER DATABASE isua_icu RENAME TO isua;"
+```
+
+Старая C-locale БД сохранена как `isua_c_backup` (откат: обратный RENAME).
+DATABASE_URL не меняется (имя БД осталось `isua`). Бэкап-дамп: `%LOCALAPPDATA%\isua-pg\backups\`.
+
+## Накопленные миграции (на 2026-06-18)
 
 init → simplify_statuses → add_passport_quota_paid_additional →
-add_program_min_scores → lock_username → add_user_role → add_special_right
+add_program_min_scores → lock_username → add_user_role → add_special_right →
+add_token_version

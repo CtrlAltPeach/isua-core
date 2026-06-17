@@ -17,31 +17,74 @@ export class ApiError extends Error {
   }
 }
 
-async function request<T>(
+// Параметры повторных попыток при временных сбоях (потеря соединения, 5xx).
+const MAX_ATTEMPTS = 3;
+const RETRY_BACKOFF_MS = 300; // 300мс, 900мс между попытками
+// Транзиентные HTTP-коды, которые имеет смысл повторить (шлюз/перегрузка).
+const RETRYABLE_STATUS = new Set([502, 503, 504]);
+
+const sleep = (ms: number) => new Promise((r) => setTimeout(r, ms));
+
+// Повторяем только идемпотентные запросы (GET/HEAD) — повтор POST/PUT/DELETE
+// мог бы создать дубль/повторно применить изменение.
+function isIdempotent(method: string | undefined) {
+  const m = (method ?? "GET").toUpperCase();
+  return m === "GET" || m === "HEAD";
+}
+
+// Экспортируется для unit-тестов retry-логики; в приложении используется
+// через типизированные обёртки ниже (applicantsApi и т.д.).
+export async function request<T>(
   path: string,
   options: RequestInit = {},
 ): Promise<T> {
-  const res = await fetch(`/api${path}`, {
-    credentials: "include",
-    headers:
-      options.body !== undefined
-        ? { "Content-Type": "application/json", ...options.headers }
-        : options.headers,
-    ...options,
-  });
+  const idempotent = isIdempotent(options.method);
 
-  // Пустой ответ (например, 204) — возвращаем undefined.
-  const text = await res.text();
-  const data = text ? JSON.parse(text) : undefined;
+  let lastErr: unknown;
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    let res: Response;
+    try {
+      res = await fetch(`/api${path}`, {
+        credentials: "include",
+        headers:
+          options.body !== undefined
+            ? { "Content-Type": "application/json", ...options.headers }
+            : options.headers,
+        ...options,
+      });
+    } catch {
+      // fetch бросает TypeError при сетевой ошибке (нет соединения, DNS, abort).
+      lastErr = new ApiError("Нет соединения с сервером", 0);
+      if (idempotent && attempt < MAX_ATTEMPTS) {
+        await sleep(RETRY_BACKOFF_MS * attempt);
+        continue;
+      }
+      throw lastErr;
+    }
 
-  if (!res.ok) {
-    const message =
-      (data && typeof data === "object" && "error" in data
-        ? (data as { error: string }).error
-        : null) ?? `Ошибка запроса (${res.status})`;
-    throw new ApiError(message, res.status, (data as { details?: unknown })?.details);
+    // Транзиентный 5xx у идемпотентного запроса — повторяем.
+    if (idempotent && RETRYABLE_STATUS.has(res.status) && attempt < MAX_ATTEMPTS) {
+      lastErr = new ApiError(`Ошибка запроса (${res.status})`, res.status);
+      await sleep(RETRY_BACKOFF_MS * attempt);
+      continue;
+    }
+
+    // Пустой ответ (например, 204) — возвращаем undefined.
+    const text = await res.text();
+    const data = text ? JSON.parse(text) : undefined;
+
+    if (!res.ok) {
+      const message =
+        (data && typeof data === "object" && "error" in data
+          ? (data as { error: string }).error
+          : null) ?? `Ошибка запроса (${res.status})`;
+      throw new ApiError(message, res.status, (data as { details?: unknown })?.details);
+    }
+    return data as T;
   }
-  return data as T;
+
+  // Исчерпали попытки (только идемпотентные сюда доходят).
+  throw lastErr ?? new ApiError("Нет соединения с сервером", 0);
 }
 
 // --- Auth ---

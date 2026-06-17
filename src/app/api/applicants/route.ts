@@ -46,18 +46,14 @@ export async function GET(req: NextRequest) {
     where.programId = Number(programId);
   }
   if (search) {
-    // Регистронезависимый поиск по кириллице: lower() с ICU-collation
-    // (default-collation БД = C, поэтому ILIKE не сворачивает регистр русских букв).
-    // Сначала находим id через raw SQL, затем фильтруем обычным Prisma-where —
-    // так сохраняются сортировка/пагинация/include.
-    const pattern = `%${search.toLowerCase()}%`;
-    const rows = await prisma.$queryRaw<{ id: number }[]>`
-      SELECT "id" FROM "Applicant"
-      WHERE lower("fullName" COLLATE "und-x-icu") LIKE ${pattern}
-         OR lower(coalesce("email", '') COLLATE "und-x-icu") LIKE ${pattern}
-         OR lower(coalesce("phone", '')) LIKE ${pattern}
-    `;
-    where.id = { in: rows.map((r) => r.id) };
+    // Регистронезависимый поиск, в т.ч. по кириллице. БД создана с ICU-локалью
+    // ru-RU (12A), поэтому Prisma mode:"insensitive" корректно сворачивает регистр
+    // русских букв — raw SQL с COLLATE-костылём больше не нужен.
+    where.OR = [
+      { fullName: { contains: search, mode: "insensitive" } },
+      { email: { contains: search, mode: "insensitive" } },
+      { phone: { contains: search, mode: "insensitive" } },
+    ];
   }
 
   const [items, total] = await Promise.all([
