@@ -2,7 +2,7 @@
 // Захватывает лок при открытии, шлёт heartbeat каждые 10с, снимает при закрытии.
 "use client";
 import { useEffect, useRef, useState } from "react";
-import { locksApi } from "@/lib/api";
+import { locksApi, ApiError } from "@/lib/api";
 
 const HEARTBEAT_MS = 10_000;
 
@@ -33,9 +33,15 @@ export function useLock(applicantId: number | null, active: boolean) {
       .then((res) => {
         if (res.locked) {
           setLockedBy(null);
-          // Запускаем heartbeat, пока держим лок.
+          // Запускаем heartbeat, пока держим лок. Если сессия истекла (401) —
+          // останавливаем интервал, чтобы не долбить эндпоинт без авторизации.
           heartbeatRef.current = setInterval(() => {
-            locksApi.heartbeat(applicantId, sessionId).catch(() => {});
+            locksApi.heartbeat(applicantId, sessionId).catch((e) => {
+              if (e instanceof ApiError && e.status === 401) {
+                if (heartbeatRef.current) clearInterval(heartbeatRef.current);
+                heartbeatRef.current = null;
+              }
+            });
           }, HEARTBEAT_MS);
         } else {
           setLockedBy(res.lockedBy ?? "другой пользователь");

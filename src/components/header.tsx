@@ -149,9 +149,6 @@ export function Header() {
         </button>
       </nav>
 
-      {/* Отступ снизу, чтобы контент не прятался под панелью (телефон/планшет) */}
-      <div className="h-14 lg:hidden" aria-hidden />
-
       {/* Телефон/планшет: меню «Ещё» */}
       {moreOpen && (
         <div className="fixed inset-0 z-50 lg:hidden" onClick={() => setMoreOpen(false)}>

@@ -96,8 +96,8 @@ export function BulkDeleteManager() {
         <h2 className="font-semibold text-slate-900">
           Удаление абитуриентов
         </h2>
-        <div className="flex items-center gap-3">
-          <div className="relative w-60">
+        <div className="flex w-full items-center gap-3 sm:w-auto">
+          <div className="relative flex-1 sm:w-60 sm:flex-none">
             <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
             <Input
               value={search}
@@ -106,18 +106,21 @@ export function BulkDeleteManager() {
               className="h-9 pl-9"
             />
           </div>
+          {/* На мобильном — только иконка + счётчик (текст не влезает) */}
           <Button
             variant="danger"
             size="sm"
             disabled={selected.size === 0 || busy}
             onClick={deleteSelected}
+            title="Удалить выбранные"
           >
             {busy ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
               <Trash2 className="size-4" />
             )}
-            Удалить выбранные ({selected.size})
+            <span className="hidden sm:inline">Удалить выбранные</span>
+            <span> ({selected.size})</span>
           </Button>
         </div>
       </div>

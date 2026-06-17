@@ -514,7 +514,6 @@ export function ApplicantTable({
             )}
           </span>
           {a.phone && <span>{a.phone}</span>}
-          <span className="ml-auto">{formatDate(a.createdAt, timezone)}</span>
         </div>
 
         <div className="mt-2 flex items-center gap-2">
@@ -542,6 +541,11 @@ export function ApplicantTable({
             <Clock className="size-4" />
             История
           </button>
+          {/* Дата+время — справа, на одном уровне с кнопкой «История» */}
+          <span className="ml-auto text-right text-xs leading-tight text-slate-400">
+            {formatDate(a.createdAt, timezone)}{" "}
+            <span className="text-slate-400">{formatTime(a.createdAt, timezone)}</span>
+          </span>
         </div>
 
         {expanded && (
