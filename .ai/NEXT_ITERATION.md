@@ -52,7 +52,7 @@
 - Локальная C-locale БД сохранена как `isua_c_backup` (откат через обратный RENAME);
   когда новая ICU-БД подтверждена в работе — backup можно удалить.
 - ПРОД/dev-preview: при следующем провижене БД создавать её с ICU ru-RU
-  (см. PROMPT/DATABASE_ENVIRONMENTS.md, раздел «Локаль БД: ICU ru-RU»).
+  (см. `.ai/ops/DATABASE_ENVIRONMENTS.md`, раздел «Локаль БД: ICU ru-RU»).
 
-> Полный реестр требований и статусы — в REQUIREMENTS_BACKLOG.md (§13 — безопасность,
-> tracking-таблица — §11).
+> Полный реестр требований и статусы — в `REQUIREMENTS_BACKLOG.md`; безопасность — в
+> `SECURITY.md`; tracking-таблица — `REQUIREMENTS_BACKLOG.md` §11.

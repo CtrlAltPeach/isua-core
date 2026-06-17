@@ -20,7 +20,7 @@
 
 - Node.js 20+
 - PostgreSQL 17, **созданный с ICU-локалью `ru-RU`** — иначе регистронезависимый
-  поиск по кириллице не работает (см. ниже и `PROMPT/DATABASE_ENVIRONMENTS.md`).
+  поиск по кириллице не работает (см. ниже и `.ai/ops/DATABASE_ENVIRONMENTS.md`).
 
 ## Быстрый старт (локально)
 
@@ -66,7 +66,7 @@ SELECT 'ПЕТРОВ' ILIKE '%петр%';
 ```
 
 Локальный portable-PostgreSQL и пошаговая миграция C-locale → ICU описаны в
-`PROMPT/DATABASE_ENVIRONMENTS.md`.
+`.ai/ops/DATABASE_ENVIRONMENTS.md`.
 
 ## Скрипты
 
@@ -111,7 +111,7 @@ npm run test:watch  # watch-режим
   `DATABASE_URL=<url> npx prisma migrate deploy`.
 - Ветка `main` → Production, `dev` → Preview (разные БД).
 
-Подробности — `PROMPT/DATABASE_ENVIRONMENTS.md`.
+Подробности — `.ai/ops/DATABASE_ENVIRONMENTS.md`.
 
 ## Структура
 
@@ -119,8 +119,11 @@ npm run test:watch  # watch-режим
 src/
   app/          — страницы (App Router) и API-роуты (app/api/**)
   components/   — UI-компоненты
-  lib/          — бизнес-логика, утилиты, клиентский API, тесты
+  lib/          — бизнес-логика, утилиты, клиентский API
   hooks/        — React-хуки
 prisma/         — schema.prisma, миграции, seed
-PROMPT/         — рабочая документация (контекст, бэклог, среды БД)
+.ai/            — контекст для ИИ: CHANGELOG, бэклог, безопасность, план итераций
+  ops/          — эксплуатационные документы (среды БД, ICU-локаль, миграции)
+AGENTS.md       — правила разработки
+README.md       — этот файл
 ```
