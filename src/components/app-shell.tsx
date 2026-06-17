@@ -1,9 +1,19 @@
 // Оболочка защищённых страниц: проверка авторизации + шапка + контейнер.
 "use client";
+import { useEffect } from "react";
 import { AuthGuard } from "@/components/auth-guard";
 import { Header } from "@/components/header";
+import { useAppStore } from "@/lib/store";
+import { detectTimezone } from "@/lib/timezone";
 
 export function AppShell({ children }: { children: React.ReactNode }) {
+  // Автоопределение таймзоны из браузера (на клиенте, чтобы не было hydration
+  // mismatch). Не перезатирает зону, выбранную пользователем вручную.
+  const applyAutoTimezone = useAppStore((s) => s.applyAutoTimezone);
+  useEffect(() => {
+    applyAutoTimezone(detectTimezone());
+  }, [applyAutoTimezone]);
+
   return (
     <AuthGuard>
       <Header />

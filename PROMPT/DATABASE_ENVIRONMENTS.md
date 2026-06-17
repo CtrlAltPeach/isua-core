@@ -32,16 +32,18 @@ Vercel при деплое НЕ выполняет миграции. Накат�
 
 ```bash
 # прод
-DATABASE_URL="<prod-url>" npx prisma migrate deploy
+$env:DATABASE_URL="<prod-url>" npx prisma migrate deploy
+$env:DATABASE_URL="<prod-url>" npx prisma migrate reset --force
 
 # dev / preview
-DATABASE_URL="<dev-url>" npx prisma migrate deploy
+$env:DATABASE_URL="<dev-url>" npx prisma migrate deploy
+$env:DATABASE_URL="<dev-url>" npx prisma migrate reset --force
 ```
 
 Сидинг (только если нужны тестовые данные — НЕ на прод с боевыми):
 
 ```bash
-DATABASE_URL="<dev-url>" ENCRYPTION_KEY="<key>" npm run db:seed
+$env:DATABASE_URL="<dev-url>" ENCRYPTION_KEY="<key>" npm run db:seed
 ```
 
 ## Порядок при изменении схемы (рабочий цикл)
@@ -113,8 +115,13 @@ PG="$LOCALAPPDATA/isua-pg/pgsql/bin"; export PGPASSWORD=postgres
 Старая C-locale БД сохранена как `isua_c_backup` (откат: обратный RENAME).
 DATABASE_URL не меняется (имя БД осталось `isua`). Бэкап-дамп: `%LOCALAPPDATA%\isua-pg\backups\`.
 
-## Накопленные миграции (на 2026-06-18)
+## Миграции (на 2026-06-18 — после squash)
 
-init → simplify_statuses → add_passport_quota_paid_additional →
-add_program_min_scores → lock_username → add_user_role → add_special_right →
-add_token_version
+История миграций схлопнута в одну `20260618030000_init` (squash), т.к. все 8
+прежних были накатаны только локально на пустой БД. Новая init сгенерирована из
+текущей schema.prisma командой `prisma migrate diff --from-empty
+--to-schema-datamodel prisma/schema.prisma --script` и даёт ровно ту же схему.
+
+⚠️ Squash безопасен только потому, что прод/dev-preview БД ещё не накатаны. Если
+такая БД появится — на ней `migrate deploy` применит init с нуля (на пустой БД).
+Делать squash повторно, когда есть БД с данными, НЕЛЬЗЯ без `migrate resolve`.

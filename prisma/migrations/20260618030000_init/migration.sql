@@ -1,11 +1,21 @@
+-- CreateSchema
+CREATE SCHEMA IF NOT EXISTS "public";
+
 -- CreateEnum
-CREATE TYPE "ApplicantStatus" AS ENUM ('new', 'applied', 'withdrawn', 'accepted', 'rejected');
+CREATE TYPE "ApplicantStatus" AS ENUM ('applied', 'withdrawn');
+
+-- CreateEnum
+CREATE TYPE "DocumentType" AS ENUM ('diploma', 'certificate');
+
+-- CreateEnum
+CREATE TYPE "Role" AS ENUM ('admin', 'operator');
 
 -- CreateTable
 CREATE TABLE "Program" (
     "id" SERIAL NOT NULL,
     "name" TEXT NOT NULL,
     "places" INTEGER NOT NULL,
+    "minScores" JSONB,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
     CONSTRAINT "Program_pkey" PRIMARY KEY ("id")
@@ -17,6 +27,8 @@ CREATE TABLE "User" (
     "email" TEXT NOT NULL,
     "passwordHash" TEXT NOT NULL,
     "username" TEXT NOT NULL,
+    "role" "Role" NOT NULL DEFAULT 'operator',
+    "tokenVersion" INTEGER NOT NULL DEFAULT 0,
     "createdAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastLogin" TIMESTAMP(3),
 
@@ -30,17 +42,25 @@ CREATE TABLE "Applicant" (
     "phone" TEXT,
     "email" TEXT,
     "programId" INTEGER NOT NULL,
-    "status" "ApplicantStatus" NOT NULL DEFAULT 'new',
+    "status" "ApplicantStatus" NOT NULL DEFAULT 'applied',
     "consentToEnroll" BOOLEAN NOT NULL DEFAULT false,
     "documentsComplete" BOOLEAN NOT NULL DEFAULT false,
+    "specialQuota" BOOLEAN NOT NULL DEFAULT false,
+    "specialRight" BOOLEAN NOT NULL DEFAULT false,
+    "isPaid" BOOLEAN NOT NULL DEFAULT false,
+    "documentType" "DocumentType",
+    "citizenship" TEXT,
+    "passportSeries" TEXT,
+    "passportNumber" TEXT,
     "mathBase" INTEGER,
-    "mathProfile" DOUBLE PRECISION,
-    "russian" DOUBLE PRECISION,
-    "chemistry" DOUBLE PRECISION,
-    "physics" DOUBLE PRECISION,
-    "informatics" DOUBLE PRECISION,
-    "geography" DOUBLE PRECISION,
-    "totalScore" DOUBLE PRECISION,
+    "mathProfile" INTEGER,
+    "russian" INTEGER,
+    "chemistry" INTEGER,
+    "physics" INTEGER,
+    "informatics" INTEGER,
+    "geography" INTEGER,
+    "additionalScores" INTEGER NOT NULL DEFAULT 0,
+    "totalScore" INTEGER,
     "registrationAddress" TEXT,
     "inn" TEXT,
     "snils" TEXT,
@@ -71,6 +91,7 @@ CREATE TABLE "Lock" (
     "id" SERIAL NOT NULL,
     "applicantId" INTEGER NOT NULL,
     "userSessionId" TEXT NOT NULL,
+    "lockedByUsername" TEXT NOT NULL,
     "lockedAt" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "lastHeartbeat" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
 
@@ -121,3 +142,4 @@ ALTER TABLE "History" ADD CONSTRAINT "History_changedByUserId_fkey" FOREIGN KEY 
 
 -- AddForeignKey
 ALTER TABLE "Lock" ADD CONSTRAINT "Lock_applicantId_fkey" FOREIGN KEY ("applicantId") REFERENCES "Applicant"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+

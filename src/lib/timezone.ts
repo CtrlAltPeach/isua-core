@@ -1,6 +1,21 @@
 // Корректный расчёт границ суток в произвольной таймзоне (через Intl).
 // Заменяет прежний хардкод МСК=UTC+3 / прочие=UTC в stats/daily.
 
+// Дефолтная зона, если автоопределение недоступно (SSR, старый рантайм).
+export const FALLBACK_TIMEZONE = "Europe/Moscow";
+
+// Таймзона системы пользователя (IANA-id, напр. "Asia/Yekaterinburg").
+// Только на клиенте — на сервере вернёт зону сервера, поэтому вызывать в эффекте.
+export function detectTimezone(): string {
+  try {
+    return (
+      Intl.DateTimeFormat().resolvedOptions().timeZone || FALLBACK_TIMEZONE
+    );
+  } catch {
+    return FALLBACK_TIMEZONE;
+  }
+}
+
 // Смещение таймзоны (в минутах) для конкретного момента времени.
 // Положительное = зона впереди UTC (например, Europe/Moscow → +180).
 export function tzOffsetMinutes(date: Date, timeZone: string): number {

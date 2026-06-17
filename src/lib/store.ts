@@ -3,6 +3,7 @@ import { create } from "zustand";
 import { persist } from "zustand/middleware";
 import type { PublicUser } from "@/lib/types";
 import type { ApplicantFilters } from "@/lib/api";
+import { FALLBACK_TIMEZONE } from "@/lib/timezone";
 
 interface AuthSlice {
   user: PublicUser | null;
@@ -19,7 +20,13 @@ interface FilterSlice {
 
 interface UiSlice {
   timezone: string;
+  // false — зона определена автоматически из браузера (можно переопределять
+  // при автоопределении); true — пользователь выбрал зону вручную.
+  timezoneManual: boolean;
+  // Установить зону вручную (фиксирует выбор: timezoneManual=true).
   setTimezone: (tz: string) => void;
+  // Применить автоопределённую зону (только если выбор не зафиксирован вручную).
+  applyAutoTimezone: (tz: string) => void;
 }
 
 const DEFAULT_FILTERS: ApplicantFilters = {
@@ -50,13 +57,21 @@ export const useAppStore = create<AppStore>()(
       resetFilters: () => set({ filters: DEFAULT_FILTERS }),
 
       // ui
-      timezone: "Europe/Moscow",
-      setTimezone: (tz) => set({ timezone: tz }),
+      // SSR-стабильный дефолт; реальная зона подставляется на клиенте
+      // (applyAutoTimezone) — иначе hydration mismatch.
+      timezone: FALLBACK_TIMEZONE,
+      timezoneManual: false,
+      setTimezone: (tz) => set({ timezone: tz, timezoneManual: true }),
+      applyAutoTimezone: (tz) =>
+        set((s) => (s.timezoneManual ? s : { timezone: tz })),
     }),
     {
       name: "isua-ui",
       // Персистим только UI-предпочтения, не auth/filters.
-      partialize: (s) => ({ timezone: s.timezone }),
+      partialize: (s) => ({
+        timezone: s.timezone,
+        timezoneManual: s.timezoneManual,
+      }),
     },
   ),
 );

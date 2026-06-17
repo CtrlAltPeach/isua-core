@@ -1,5 +1,12 @@
-// Seed-скрипт: программы + демо-пользователь + тестовые абитуриенты.
-// Запуск: npm run db:seed
+// Seed-скрипт.
+//
+// СИДИНГ ОТКЛЮЧЁН по умолчанию (по решению пользователя 2026-06-18): БД должна
+// заполняться вручную через интерфейс, без авто-генерации тестовых данных.
+// `npm run db:seed` / `prisma migrate reset` ничего не создают.
+//
+// Чтобы временно вернуть тестовые данные — запустить с флагом:
+//   SEED_DATA=1 npm run db:seed
+// тогда создаются 4 программы, демо-админ (admin@isua.local) и 60 абитуриентов.
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
 import { calculateTotalScore } from "../src/lib/scoring";
@@ -7,7 +14,7 @@ import { encrypt } from "../src/lib/crypto";
 
 const prisma = new PrismaClient();
 
-// 4 программы (ЗиК удалена).
+// 4 программы (ЗиК удалена). Используются только при SEED_DATA=1.
 const PROGRAMS = [
   { name: "ИСД", places: 100 },
   { name: "ТГСВ", places: 80 },
@@ -16,6 +23,16 @@ const PROGRAMS = [
 ];
 
 async function main() {
+  // Сидинг включается только явным флагом SEED_DATA=1. Иначе — ничего не делаем.
+  if (process.env.SEED_DATA !== "1") {
+    console.log(
+      "Сидинг отключён. Данные заводятся вручную через интерфейс.\n" +
+        "Первого админа создайте через /register (bootstrap на пустой БД).\n" +
+        "Чтобы засеять тестовые данные: SEED_DATA=1 npm run db:seed",
+    );
+    return;
+  }
+
   // Программы — идемпотентно через upsert по уникальному name.
   for (const p of PROGRAMS) {
     await prisma.program.upsert({
@@ -26,23 +43,9 @@ async function main() {
   }
   console.log(`Программы: ${PROGRAMS.length} шт.`);
 
-  // Демо-админ + тестовые абитуриенты — НЕ создаём на проде с дефолтным паролем
-  // (L4). Создаём, если:
-  //   - не production (локальная разработка), ИЛИ
-  //   - явно задан SEED_ADMIN_PASSWORD (тогда используем его, а не дефолт).
-  const isProd = process.env.NODE_ENV === "production";
-  const customPassword = process.env.SEED_ADMIN_PASSWORD;
-
-  if (isProd && !customPassword) {
-    console.log(
-      "Прод без SEED_ADMIN_PASSWORD: демо-админ и тестовые данные НЕ создаются.\n" +
-        "Создайте первого админа через /register (bootstrap) или задайте SEED_ADMIN_PASSWORD.",
-    );
-    return;
-  }
-
+  // Демо-админ: пароль из SEED_ADMIN_PASSWORD, иначе дефолт admin12345 (dev).
   const demoEmail = "admin@isua.local";
-  const password = customPassword ?? "admin12345";
+  const password = process.env.SEED_ADMIN_PASSWORD ?? "admin12345";
   const passwordHash = await bcrypt.hash(password, 10);
   const admin = await prisma.user.upsert({
     where: { email: demoEmail },
@@ -55,7 +58,8 @@ async function main() {
     },
   });
   console.log(
-    `Админ: ${demoEmail}` + (customPassword ? "" : " / admin12345 (dev)"),
+    `Админ: ${demoEmail}` +
+      (process.env.SEED_ADMIN_PASSWORD ? "" : " / admin12345 (dev)"),
   );
 
   // Тестовые абитуриенты (только если их ещё нет).

@@ -1,5 +1,10 @@
-import { describe, it, expect } from "vitest";
-import { tzOffsetMinutes, dayBoundsUTC } from "@/lib/timezone";
+import { describe, it, expect, vi, afterEach } from "vitest";
+import {
+  tzOffsetMinutes,
+  dayBoundsUTC,
+  detectTimezone,
+  FALLBACK_TIMEZONE,
+} from "@/lib/timezone";
 
 describe("tzOffsetMinutes", () => {
   it("Москва = UTC+3 (180 минут), без DST круглый год", () => {
@@ -48,5 +53,30 @@ describe("dayBoundsUTC", () => {
     const before = new Date("2026-06-16T20:00:00Z");
     expect(inside >= start && inside < end).toBe(true);
     expect(before >= start && before < end).toBe(false);
+  });
+});
+
+describe("detectTimezone", () => {
+  afterEach(() => vi.restoreAllMocks());
+
+  it("возвращает зону из Intl", () => {
+    vi.spyOn(Intl, "DateTimeFormat").mockReturnValue({
+      resolvedOptions: () => ({ timeZone: "Asia/Yekaterinburg" }),
+    } as unknown as Intl.DateTimeFormat);
+    expect(detectTimezone()).toBe("Asia/Yekaterinburg");
+  });
+
+  it("фолбэк на Москву, если Intl бросает", () => {
+    vi.spyOn(Intl, "DateTimeFormat").mockImplementation(() => {
+      throw new Error("no Intl");
+    });
+    expect(detectTimezone()).toBe(FALLBACK_TIMEZONE);
+  });
+
+  it("фолбэк, если зона пустая", () => {
+    vi.spyOn(Intl, "DateTimeFormat").mockReturnValue({
+      resolvedOptions: () => ({ timeZone: "" }),
+    } as unknown as Intl.DateTimeFormat);
+    expect(detectTimezone()).toBe(FALLBACK_TIMEZONE);
   });
 });

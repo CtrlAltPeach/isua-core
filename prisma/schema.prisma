@@ -81,16 +81,16 @@ model Applicant {
   passportSeries String? // серия паспорта
   passportNumber String? // номер паспорта
 
-  // Результаты экзаменов
+  // Результаты экзаменов. Баллы — целые (Int), валидация требует .int().
   mathBase    Int? // оценка 2-5, в рейтинг НЕ входит (взаимоисключающа с mathProfile)
-  mathProfile Float? // 0-100
-  russian     Float?
-  chemistry   Float?
-  physics     Float?
-  informatics Float?
-  geography   Float?
-  additionalScores Float @default(0) // доп. баллы / ВИ (могут поднять total выше 300)
-  totalScore  Float? // авто: сумма топ-3 предметов (без mathBase) + additionalScores
+  mathProfile Int? // 0-100
+  russian     Int?
+  chemistry   Int?
+  physics     Int?
+  informatics Int?
+  geography   Int?
+  additionalScores Int @default(0) // доп. баллы / ВИ (могут поднять total выше 300)
+  totalScore  Int? // авто: сумма топ-3 предметов (без mathBase) + additionalScores
 
   // Персональные данные
   registrationAddress String?
