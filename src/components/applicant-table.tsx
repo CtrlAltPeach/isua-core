@@ -85,6 +85,93 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
+// Маркеры абитуриента (база математики, квоты, платное, заметка) — общие для
+// табличного и карточного режимов.
+function Markers({ a }: { a: ApplicantWithProgram }) {
+  return (
+    <>
+      {a.mathBase != null && (
+        <span
+          title={`База математики: ${a.mathBase}`}
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-rose-100 text-xs font-bold text-rose-700"
+        >
+          Б
+        </span>
+      )}
+      {a.specialQuota && (
+        <span
+          title="Особая квота"
+          className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-yellow-100 px-1 text-xs font-bold text-yellow-700"
+        >
+          ОК
+        </span>
+      )}
+      {a.specialRight && (
+        <span
+          title="Особое право"
+          className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-200 px-1 text-xs font-bold text-amber-800"
+        >
+          ОП
+        </span>
+      )}
+      {a.isPaid && (
+        <span
+          title="Платное обучение"
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-xs font-bold text-slate-600"
+        >
+          П
+        </span>
+      )}
+      {a.notes && (
+        <span
+          title={a.notes}
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-amber-100 text-xs font-bold text-amber-700"
+        >
+          З
+        </span>
+      )}
+    </>
+  );
+}
+
+// Детали абитуриента (паспорт, контакты, заметка) — общий блок для строки-детали
+// таблицы и раскрытой карточки на мобильном.
+function ApplicantDetails({ a }: { a: ApplicantWithProgram }) {
+  return (
+    <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
+      <Detail label="Гражданство" value={a.citizenship} />
+      <Detail
+        label="Документ об образовании"
+        value={
+          a.documentType === "diploma"
+            ? "Диплом"
+            : a.documentType === "certificate"
+              ? "Аттестат"
+              : null
+        }
+      />
+      <Detail
+        label="Паспорт"
+        value={
+          a.passportSeries || a.passportNumber
+            ? `${a.passportSeries ?? ""} ${a.passportNumber ?? ""}`.trim()
+            : null
+        }
+      />
+      <Detail label="СНИЛС" value={a.snils} />
+      <Detail label="ИНН" value={a.inn} />
+      <Detail label="Прописка" value={a.registrationAddress} />
+      <Detail label="Email" value={a.email} />
+      {a.notes && (
+        <div className="col-span-2 sm:col-span-4">
+          <dt className="text-xs font-medium text-slate-400">Заметка</dt>
+          <dd className="whitespace-pre-wrap text-slate-700">{a.notes}</dd>
+        </div>
+      )}
+    </dl>
+  );
+}
+
 export function ApplicantTable({
   onEdit,
   onCreate,
@@ -292,46 +379,7 @@ export function ApplicantTable({
             <span className="min-w-0 truncate" title={a.fullName}>
               {a.fullName}
             </span>
-            {a.mathBase != null && (
-              <span
-                title={`База математики: ${a.mathBase}`}
-                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-rose-100 text-xs font-bold text-rose-700"
-              >
-                Б
-              </span>
-            )}
-            {a.specialQuota && (
-              <span
-                title="Особая квота"
-                className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-yellow-100 px-1 text-xs font-bold text-yellow-700"
-              >
-                ОК
-              </span>
-            )}
-            {a.specialRight && (
-              <span
-                title="Особое право"
-                className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-200 px-1 text-xs font-bold text-amber-800"
-              >
-                ОП
-              </span>
-            )}
-            {a.isPaid && (
-              <span
-                title="Платное обучение"
-                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-xs font-bold text-slate-600"
-              >
-                П
-              </span>
-            )}
-            {a.notes && (
-              <span
-                title={a.notes}
-                className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-amber-100 text-xs font-bold text-amber-700"
-              >
-                З
-              </span>
-            )}
+            <Markers a={a} />
           </span>
         </td>
         <td className="truncate px-2.5 py-3 text-slate-600">
@@ -402,43 +450,106 @@ export function ApplicantTable({
         <tr className="border-b border-slate-100 bg-slate-50/60">
           <td />
           <td colSpan={colCount - 1} className="px-2.5 pb-3 pt-1">
-            <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
-              <Detail label="Гражданство" value={a.citizenship} />
-              <Detail
-                label="Документ об образовании"
-                value={
-                  a.documentType === "diploma"
-                    ? "Диплом"
-                    : a.documentType === "certificate"
-                      ? "Аттестат"
-                      : null
-                }
-              />
-              <Detail
-                label="Паспорт"
-                value={
-                  a.passportSeries || a.passportNumber
-                    ? `${a.passportSeries ?? ""} ${a.passportNumber ?? ""}`.trim()
-                    : null
-                }
-              />
-              <Detail label="СНИЛС" value={a.snils} />
-              <Detail label="ИНН" value={a.inn} />
-              <Detail label="Прописка" value={a.registrationAddress} />
-              <Detail label="Email" value={a.email} />
-              {a.notes && (
-                <div className="col-span-2 sm:col-span-4">
-                  <dt className="text-xs font-medium text-slate-400">Заметка</dt>
-                  <dd className="whitespace-pre-wrap text-slate-700">
-                    {a.notes}
-                  </dd>
-                </div>
-              )}
-            </dl>
+            <ApplicantDetails a={a} />
           </td>
         </tr>
       )}
       </Fragment>
+    );
+  };
+
+  // Карточный режим (мобильный, <md): те же данные, что в строке, но без
+  // горизонтального скролла. Тап по карточке открывает редактирование.
+  const renderCard = (a: ApplicantWithProgram) => {
+    const meta = STATUS_META[a.status as ApplicantStatus];
+    const prog = programs.find((p) => p.id === a.programId);
+    const failing = prog?.minScores ? failingSubjects(a, prog.minScores) : [];
+    const expanded = expandedRows.has(a.id);
+    return (
+      <div
+        key={a.id}
+        onClick={() => onEdit(a)}
+        className="cursor-pointer border-b border-slate-100 p-3 last:border-0 active:bg-emerald-50/40"
+      >
+        <div className="flex items-start justify-between gap-2">
+          <div className="flex min-w-0 flex-1 items-center gap-1.5 font-medium text-slate-900">
+            <span className="min-w-0 truncate" title={a.fullName}>
+              {a.fullName}
+            </span>
+            <Markers a={a} />
+          </div>
+          <div className="flex shrink-0 items-center gap-1 text-right font-semibold text-slate-900">
+            {failing.length > 0 && (
+              <AlertTriangle className="size-3.5 text-amber-500" />
+            )}
+            {a.totalScore != null ? a.totalScore : "—"}
+            <span className="text-xs font-normal text-slate-400">б</span>
+          </div>
+        </div>
+
+        <div className="mt-1 truncate text-sm text-slate-600">
+          {a.program?.name ?? "—"}
+        </div>
+
+        <div className="mt-2 flex flex-wrap items-center gap-2 text-xs text-slate-500">
+          {meta ? (
+            <Badge className={meta.badge}>{meta.label}</Badge>
+          ) : (
+            <Badge className="bg-slate-100 text-slate-500">{a.status}</Badge>
+          )}
+          <span className="inline-flex items-center gap-1">
+            Согл.
+            {a.consentToEnroll ? (
+              <Check className="size-4 stroke-[3] text-emerald-600" />
+            ) : (
+              <span className="font-bold text-rose-400">✗</span>
+            )}
+          </span>
+          <span className="inline-flex items-center gap-1">
+            Док.
+            {a.documentsComplete ? (
+              <Check className="size-4 stroke-[3] text-emerald-600" />
+            ) : (
+              <span className="font-bold text-rose-400">✗</span>
+            )}
+          </span>
+          {a.phone && <span>{a.phone}</span>}
+          <span className="ml-auto">{formatDate(a.createdAt, timezone)}</span>
+        </div>
+
+        <div className="mt-2 flex items-center gap-2">
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              toggleRow(a.id);
+            }}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-slate-100"
+          >
+            {expanded ? (
+              <ChevronDown className="size-4" />
+            ) : (
+              <ChevronRightSmall className="size-4" />
+            )}
+            Детали
+          </button>
+          <button
+            onClick={(e) => {
+              e.stopPropagation();
+              onHistory(a);
+            }}
+            className="inline-flex items-center gap-1 rounded-md px-2 py-1 text-xs font-medium text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+          >
+            <Clock className="size-4" />
+            История
+          </button>
+        </div>
+
+        {expanded && (
+          <div className="mt-2 rounded-lg bg-slate-50 p-3">
+            <ApplicantDetails a={a} />
+          </div>
+        )}
+      </div>
     );
   };
 
@@ -454,7 +565,7 @@ export function ApplicantTable({
 
       {/* Панель управления */}
       <div className="flex flex-wrap items-center gap-3">
-        <div className="relative min-w-60 flex-1">
+        <div className="relative w-full min-w-60 flex-1 sm:w-auto">
           <Search className="pointer-events-none absolute left-3 top-1/2 size-4 -translate-y-1/2 text-slate-400" />
           <Input
             value={search}
@@ -469,7 +580,7 @@ export function ApplicantTable({
             setStatus(e.target.value);
             setPage(1);
           }}
-          className="w-48"
+          className="w-full sm:w-48"
         >
           <option value="">Все статусы</option>
           {STATUS_OPTIONS.map((s) => (
@@ -484,7 +595,7 @@ export function ApplicantTable({
             setProgramId(e.target.value);
             setPage(1);
           }}
-          className="w-44"
+          className="w-full sm:w-44"
         >
           <option value="">Все программы</option>
           {programs.map((p) => (
@@ -505,9 +616,10 @@ export function ApplicantTable({
       </div>
 
       {/* Таблица — область фикс-высоты: шапка закреплена (sticky),
-          вертикальный и горизонтальный скролл внутри этой области. */}
+          вертикальный и горизонтальный скролл внутри этой области.
+          На телефоне (<md) таблица скрыта — вместо неё карточный список. */}
       <Card className="overflow-hidden">
-        <div className="max-h-[calc(100vh-19rem)] overflow-auto">
+        <div className="hidden max-h-[calc(100vh-19rem)] overflow-auto lg:block">
           <table className="w-full min-w-[50rem] table-fixed text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
@@ -585,6 +697,41 @@ export function ApplicantTable({
               )}
             </tbody>
           </table>
+        </div>
+
+        {/* Карточный режим (телефон/планшет, <lg) */}
+        <div className="max-h-[calc(100vh-19rem)] overflow-auto lg:hidden">
+          {loading ? (
+            <div className="py-16 text-center">
+              <Loader2 className="mx-auto size-7 animate-spin text-emerald-500" />
+            </div>
+          ) : items.length === 0 ? (
+            <div className="py-16 text-center text-slate-400">
+              Ничего не найдено
+            </div>
+          ) : groupByDay ? (
+            dayGroups.map((g) => {
+              const collapsed = collapsedDays.has(g.date);
+              return (
+                <Fragment key={g.date}>
+                  <button
+                    onClick={() => toggleDay(g.date)}
+                    className="flex w-full items-center gap-2 border-b border-slate-200 bg-slate-50 px-3 py-2 text-left text-sm font-semibold text-slate-700"
+                  >
+                    {collapsed ? (
+                      <ChevronRightSmall className="size-4 text-slate-400" />
+                    ) : (
+                      <ChevronDown className="size-4 text-slate-400" />
+                    )}
+                    {g.date} ({g.weekday}) — {g.rows.length} абит.
+                  </button>
+                  {!collapsed && g.rows.map((a) => renderCard(a))}
+                </Fragment>
+              );
+            })
+          ) : (
+            items.map((a) => renderCard(a))
+          )}
         </div>
       </Card>
 

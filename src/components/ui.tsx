@@ -145,14 +145,14 @@ export function Modal({
   if (!open) return null;
   return (
     <div
-      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-4 sm:p-8"
+      className="fixed inset-0 z-50 flex items-start justify-center overflow-y-auto bg-black/40 p-2 sm:p-8"
       onMouseDown={onClose}
     >
       <div
         className="my-auto w-full max-w-2xl rounded-xl bg-white shadow-xl"
         onMouseDown={(e) => e.stopPropagation()}
       >
-        <div className="flex items-center justify-between border-b border-slate-200 px-6 py-4">
+        <div className="flex items-center justify-between border-b border-slate-200 px-4 py-4 sm:px-6">
           <h2 className="text-lg font-bold text-slate-900">{title}</h2>
           <button
             onClick={onClose}
@@ -161,9 +161,9 @@ export function Modal({
             ✕
           </button>
         </div>
-        <div className="px-6 py-5">{children}</div>
+        <div className="px-4 py-5 sm:px-6">{children}</div>
         {footer && (
-          <div className="flex justify-end gap-3 border-t border-slate-200 px-6 py-4">
+          <div className="flex flex-wrap justify-end gap-3 border-t border-slate-200 px-4 py-4 sm:px-6">
             {footer}
           </div>
         )}

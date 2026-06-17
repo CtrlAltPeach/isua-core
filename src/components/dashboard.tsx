@@ -98,7 +98,7 @@ export function Dashboard() {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-center justify-between">
+      <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-slate-900">Дашборд</h1>
         <div className="flex items-center gap-2">
           <Button
