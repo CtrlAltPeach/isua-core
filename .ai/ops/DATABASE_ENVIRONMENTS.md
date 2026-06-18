@@ -32,12 +32,12 @@ Vercel при деплое НЕ выполняет миграции. Накат�
 
 ```bash
 # прод
-$env:DATABASE_URL="<prod-url>" npx prisma migrate deploy
-$env:DATABASE_URL="<prod-url>" npx prisma migrate reset --force
+$env:DATABASE_URL="<prod-url>"; npx prisma migrate deploy
+$env:DATABASE_URL="<prod-url>"; npx prisma migrate reset --force
 
 # dev / preview
-$env:DATABASE_URL="<dev-url>" npx prisma migrate deploy
-$env:DATABASE_URL="<dev-url>" npx prisma migrate reset --force
+$env:DATABASE_URL="<dev-url>"; npx prisma migrate deploy
+$env:DATABASE_URL="<dev-url>"; npx prisma migrate reset --force
 ```
 
 Сидинг (только если нужны тестовые данные — НЕ на прод с боевыми):
