@@ -3,7 +3,7 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 13 завершена — версия 0.13.0, ветка dev)
+## Текущее состояние (итерация 14 завершена — версия 0.14.0, ветка dev)
 > Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
 > Preview-деплой использует dev-БД (см. `ops/DATABASE_ENVIRONMENTS.md`).
 
@@ -19,7 +19,9 @@
 - Формы: React Hook Form 7 + Zod 4
 - Аутентификация: bcryptjs + jose (JWT HS256, httpOnly-cookie `isua_token`)
   - rate-limit на login/register (`lib/rate-limit.ts`, `getClientIp` с trust-proxy), cookie SameSite=Strict
-  - токен только в cookie; отзыв через `User.tokenVersion` (logout инкрементит → старые JWT невалидны)
+  - токен только в cookie; отзыв через `User.tokenVersion` (logout и смена пароля инкрементят → старые JWT невалидны)
+  - смена своего пароля: `POST /api/auth/change-password` (инкремент tokenVersion + перевыдача cookie)
+  - email регистронезависим (нормализация trim+lower в Zod-схеме register/login)
   - Роли admin/operator (`lib/auth.ts` `requireAdmin`): деструктивные операции и /manage — admin;
     регистрация закрыта (только admin создаёт юзеров; bootstrap первого admin на пустой БД)
   - Security-заголовки/CSP в `next.config.ts`
@@ -75,7 +77,8 @@ src/hooks/
 ### API (15+ endpoints)
 ```
 POST /api/auth/register, /api/auth/login, /api/auth/logout
-GET  /api/auth/me
+GET  /api/auth/me             POST /api/auth/change-password
+GET  /api/applicants/export   (XLSX: лист данных + лист статистики с формулами; ПДн только admin)
 GET  /api/applicants          (фильтры, поиск, пагинация, сортировка)
 POST /api/applicants
 GET  /api/applicants/[id]
@@ -107,7 +110,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 5 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-62 теста (vitest: unit + интеграционные API)
+71 тест (vitest: unit + интеграционные API)
 0 ESLint ошибок
 
 ---
@@ -116,9 +119,9 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 
 | Документ | Содержание |
 |----------|-----------|
-| `CHANGELOG.md` | История итераций 1–13 (каноничный chanelog) |
+| `CHANGELOG.md` | История итераций 1–14 (каноничный chanelog) |
 | `REQUIREMENTS_BACKLOG.md` | Реестр требований по модулям, tracking-таблица |
-| `NEXT_ITERATION.md` | План следующей итерации (кандидаты 14) |
+| `NEXT_ITERATION.md` | План следующей итерации (кандидаты 15) |
 | `SECURITY.md` | Аудит безопасности: закрыто / осталось |
 | `ops/DATABASE_ENVIRONMENTS.md` | Среды БД, ICU-локаль, миграции, squash |
 

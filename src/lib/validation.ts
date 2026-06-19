@@ -23,8 +23,16 @@ export const bulkDeleteSchema = z.object({
 });
 
 // --- Авторизация ---
+// Email регистронезависим: нормализуем (trim + lower) ДО валидации, чтобы
+// поиск/уникальность по email не зависели от регистра ввода.
+const emailField = z
+  .string()
+  .trim()
+  .toLowerCase()
+  .pipe(z.string().email("Некорректный email"));
+
 export const registerSchema = z.object({
-  email: z.string().email("Некорректный email"),
+  email: emailField,
   username: z.string().min(2, "Имя пользователя минимум 2 символа").max(50),
   password: z.string().min(8, "Пароль минимум 8 символов").max(100),
   // Роль нового пользователя (по умолчанию operator). Учитывается только
@@ -33,8 +41,15 @@ export const registerSchema = z.object({
 });
 
 export const loginSchema = z.object({
-  email: z.string().email("Некорректный email"),
+  email: emailField,
   password: z.string().min(1, "Введите пароль"),
+});
+
+// Смена собственного пароля (D2). Новый пароль — те же требования, что при
+// регистрации (min 8). Текущий проверяется на сервере (verifyPassword).
+export const changePasswordSchema = z.object({
+  currentPassword: z.string().min(1, "Введите текущий пароль"),
+  newPassword: z.string().min(8, "Новый пароль минимум 8 символов").max(100),
 });
 
 // --- Абитуриент ---

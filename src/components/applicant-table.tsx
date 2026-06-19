@@ -23,6 +23,7 @@ import {
   Check,
   AlertTriangle,
   Loader2,
+  FileDown,
 } from "lucide-react";
 import {
   applicantsApi,
@@ -561,10 +562,24 @@ export function ApplicantTable({
     <div className="space-y-4">
       <div className="flex items-center justify-between gap-4">
         <h1 className="text-2xl font-bold text-slate-900">Абитуриенты</h1>
-        <Button onClick={onCreate}>
-          <Plus className="size-4" />
-          Добавить
-        </Button>
+        <div className="flex items-center gap-2">
+          {/* Экспорт в XLSX: прямая навигация на эндпоинт (cookie-авторизация
+              применяется автоматически, скачивание файлом по Content-Disposition). */}
+          <Button
+            variant="secondary"
+            onClick={() => {
+              window.location.href = "/api/applicants/export";
+            }}
+            title="Экспорт всех абитуриентов в XLSX"
+          >
+            <FileDown className="size-4" />
+            <span className="hidden sm:inline">Экспорт</span>
+          </Button>
+          <Button onClick={onCreate}>
+            <Plus className="size-4" />
+            <span className="hidden sm:inline">Добавить</span>
+          </Button>
+        </div>
       </div>
 
       {/* Панель управления */}

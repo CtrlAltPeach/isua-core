@@ -101,6 +101,11 @@ export const authApi = {
     }),
   logout: () => request<{ success: boolean }>("/auth/logout", { method: "POST" }),
   me: () => request<{ user: PublicUser }>("/auth/me"),
+  changePassword: (currentPassword: string, newPassword: string) =>
+    request<{ success: boolean }>("/auth/change-password", {
+      method: "POST",
+      body: JSON.stringify({ currentPassword, newPassword }),
+    }),
 };
 
 // --- Users (admin) ---

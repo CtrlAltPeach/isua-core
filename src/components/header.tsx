@@ -13,12 +13,14 @@ import {
   ListChecks,
   Settings,
   MoreHorizontal,
+  KeyRound,
   X,
 } from "lucide-react";
 import type { LucideIcon } from "lucide-react";
 import { useAuth } from "@/hooks/useAuth";
 import { useAppStore } from "@/lib/store";
 import { cn } from "@/lib/utils";
+import { ChangePasswordModal } from "@/components/change-password-modal";
 
 type Tab = {
   href: string;
@@ -46,6 +48,7 @@ export function Header() {
   const timezone = useAppStore((s) => s.timezone);
   const isAdmin = user?.role === "admin";
   const [moreOpen, setMoreOpen] = useState(false);
+  const [pwdOpen, setPwdOpen] = useState(false);
 
   const tabs = TABS.filter((t) => !t.adminOnly || isAdmin);
   const primaryTabs = tabs.filter((t) => t.primary);
@@ -101,6 +104,13 @@ export function Header() {
                 </span>
               </span>
             )}
+            <button
+              onClick={() => setPwdOpen(true)}
+              title="Сменить пароль"
+              className="inline-flex size-9 items-center justify-center rounded-md text-slate-600 hover:bg-slate-100"
+            >
+              <KeyRound className="size-4" />
+            </button>
             <button
               onClick={logout}
               title="Выход"
@@ -208,6 +218,17 @@ export function Header() {
             <button
               onClick={() => {
                 setMoreOpen(false);
+                setPwdOpen(true);
+              }}
+              className="flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium text-slate-700 hover:bg-slate-50"
+            >
+              <KeyRound className="size-5" />
+              Сменить пароль
+            </button>
+
+            <button
+              onClick={() => {
+                setMoreOpen(false);
                 logout();
               }}
               className="mt-1 flex w-full items-center gap-3 rounded-lg px-3 py-2.5 text-base font-medium text-red-600 hover:bg-red-50"
@@ -218,6 +239,8 @@ export function Header() {
           </div>
         </div>
       )}
+
+      <ChangePasswordModal open={pwdOpen} onClose={() => setPwdOpen(false)} />
     </>
   );
 }
