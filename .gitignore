@@ -45,3 +45,9 @@ next-env.d.ts
 commit-msg-tmp.txt
 verify*-tmp.mjs
 dev-server.log
+
+# дампы/бэкапы БД — содержат данные (в т.ч. зашифрованные ПДн), НЕ коммитить
+*.dump
+*.sql
+!prisma/migrations/**/*.sql
+/backups/

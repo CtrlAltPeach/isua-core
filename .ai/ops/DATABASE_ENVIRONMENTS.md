@@ -115,16 +115,69 @@ PG="$LOCALAPPDATA/isua-pg/pgsql/bin"; export PGPASSWORD=postgres
 Старая C-locale БД сохранена как `isua_c_backup` (откат: обратный RENAME).
 DATABASE_URL не меняется (имя БД осталось `isua`). Бэкап-дамп: `%LOCALAPPDATA%\isua-pg\backups\`.
 
+## Бэкапы / дампы БД
+
+⚠️ ПЕРЕД любым изменением прода (миграция, ручной SQL, смена локали) — сделать дамп.
+
+Формат `-Fc` (custom) — сжатый, восстанавливается через `pg_restore` выборочно.
+Для «человекочитаемого» SQL-дампа использовать `-Fp` (plain) → `.sql`.
+
+### Локальный portable-PostgreSQL
+
+```bash
+PG="$LOCALAPPDATA/isua-pg/pgsql/bin"; export PGPASSWORD=postgres
+# создать дамп (custom format)
+"$PG/pg_dump.exe" -U postgres -h 127.0.0.1 -p 5432 -d isua \
+  -Fc -f "$LOCALAPPDATA/isua-pg/backups/isua_$(date +%Y%m%d_%H%M%S).dump"
+
+# восстановить в ПУСТУЮ БД (пересоздать целевую перед restore)
+"$PG/pg_restore.exe" -U postgres -h 127.0.0.1 -p 5432 -d isua --no-owner <файл>.dump
+```
+
+Каталог локальных бэкапов: `%LOCALAPPDATA%\isua-pg\backups\`.
+
+### Прод / dev (managed-провайдер, по DATABASE_URL)
+
+`pg_dump`/`pg_restore` принимают connection string первым позиционным аргументом —
+удобно для Neon/Supabase (можно прямо из локальной машины). Версия клиента
+`pg_dump` должна быть ≥ версии сервера.
+
+```bash
+# дамп прода (custom format)
+pg_dump "<prod-url>" -Fc -f isua_prod_$(date +%Y%m%d_%H%M%S).dump
+
+# дамп в plain SQL (для просмотра/правок)
+pg_dump "<prod-url>" -Fp -f isua_prod.sql
+
+# восстановление в ДРУГУЮ (пустую) БД, напр. для проверки/клона в dev:
+pg_restore --no-owner -d "<target-url>" isua_prod_XXXX.dump
+```
+
+> ⚠️ Дамп содержит ЗАШИФРОВАННЫЕ ПДн (`enc:v1:…`). Чтобы расшифровать данные при
+> восстановлении в другую среду — там должен быть ТОТ ЖЕ `ENCRYPTION_KEY`. Дамп —
+> чувствительный файл: хранить безопасно, не коммитить (каталог бэкапов в `.gitignore`).
+
+### Регулярные бэкапы прода
+
+У managed-провайдеров обычно есть автоматические снапшоты (Neon — point-in-time
+restore, Supabase — daily backups). Перед ручными операциями всё равно делать
+свой `pg_dump` — это быстрый откат, не зависящий от провайдера.
+
 ## Миграции (на 2026-06-18 — после squash)
 
-История миграций схлопнута в одну `20260618030000_init` (squash), т.к. все 8
-прежних были накатаны только локально на пустой БД. Новая init сгенерирована из
-текущей schema.prisma командой `prisma migrate diff --from-empty
+История миграций схлопнута в одну `20260618030000_init` (squash), т.к. на момент
+squash все 8 прежних были накатаны только локально на пустой БД. Новая init
+сгенерирована из текущей schema.prisma командой `prisma migrate diff --from-empty
 --to-schema-datamodel prisma/schema.prisma --script` и даёт ровно ту же схему.
 
-⚠️ Squash безопасен только потому, что прод/dev-preview БД ещё не накатаны. Если
-такая БД появится — на ней `migrate deploy` применит init с нуля (на пустой БД).
-Делать squash повторно, когда есть БД с данными, НЕЛЬЗЯ без `migrate resolve`.
+Прод-БД ПОЗДНЕЕ была накатана этим init напрямую (`_prisma_migrations` содержит
+только `20260618030000_init`, типы колонок = текущая схема, ICU ru-RU). Поэтому
+сейчас прод СИНХРОНЕН с папкой миграций — `migrate deploy` применять нечего.
+
+⚠️ Делать squash повторно, когда есть БД с данными (как прод сейчас), НЕЛЬЗЯ
+обычным способом: на накатанной БД `migrate deploy` не сможет применить новый init
+поверх существующих таблиц. Нужен ручной ALTER под фактические изменения +
+`prisma migrate resolve --applied <new_init>` (пометить как применённый без SQL).
 
 ## Email регистронезависимый (итер. 14, D1)
 
