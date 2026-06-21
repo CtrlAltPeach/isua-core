@@ -157,6 +157,7 @@ async function seedApplicants(createdByUserId: number) {
         specialQuota: Math.random() < 0.15,
         specialRight: Math.random() < 0.12,
         isPaid: Math.random() < 0.2,
+        isDistant: Math.random() < 0.25,
         documentType: rnd(["diploma", "certificate", null] as const) ?? undefined,
         citizenship: rnd(["Россия", "Россия", "Россия", "Беларусь", "Казахстан"] as const),
         // Персональные данные (паспорт/ИНН/СНИЛС) — ЗАШИФРОВАННЫЕ (как в API).

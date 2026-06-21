@@ -126,6 +126,26 @@ DATABASE_URL не меняется (имя БД осталось `isua`). Бэк
 такая БД появится — на ней `migrate deploy` применит init с нуля (на пустой БД).
 Делать squash повторно, когда есть БД с данными, НЕЛЬЗЯ без `migrate resolve`.
 
+## Миграция `isDistant` (2026-06-20)
+
+Добавлено поле `Applicant.isDistant` (Boolean, дефолт `false` — дистанционное
+обучение). Миграция: `prisma/migrations/20260620000000_add_is_distant/migration.sql`
+(`ALTER TABLE "Applicant" ADD COLUMN "isDistant" BOOLEAN NOT NULL DEFAULT false`).
+
+⚠️ Накатить на КАЖДУЮ уже существующую БД (локальная / dev-preview / прод) командой
+`migrate deploy` — иначе код обратится к несуществующей колонке и упадёт. Для прода
+порядок прежний: сначала миграция БД, потом деплой кода.
+
+```bash
+npx prisma migrate deploy                                   # локально
+$env:DATABASE_URL="<dev-url>";  npx prisma migrate deploy   # dev / preview
+$env:DATABASE_URL="<prod-url>"; npx prisma migrate deploy   # прод
+```
+
+Дефолт `false` безопасен: существующие строки получат `isDistant=false`, данные не
+теряются. На ПУСТОЙ БД ничего вручную делать не нужно — init+эта миграция накатятся
+по порядку.
+
 ## Email регистронезависимый (итер. 14, D1)
 
 С итерации 14 email пользователей нормализуется к нижнему регистру (`trim+lower`)

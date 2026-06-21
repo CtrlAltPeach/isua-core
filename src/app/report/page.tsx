@@ -102,6 +102,7 @@ export default function ReportPage() {
               ["Согласий на зачисление", stats.withConsent],
               ["Документы собраны", stats.withDocuments],
               ["Платные абитуриенты", stats.withPaid],
+              ["Дистанционно", stats.withDistant],
               [
                 "Заявлений на место",
                 stats.applicationsPerPlace?.toFixed(2) ?? "—",
@@ -129,6 +130,7 @@ export default function ReportPage() {
               <th className="py-1.5 text-right">Ср. балл</th>
               <th className="py-1.5 text-right">Согласия</th>
               <th className="py-1.5 text-right">Платные</th>
+              <th className="py-1.5 text-right">Дистант</th>
             </tr>
           </thead>
           <tbody>
@@ -145,6 +147,7 @@ export default function ReportPage() {
                 </td>
                 <td className="py-1.5 text-right">{p.withConsent}</td>
                 <td className="py-1.5 text-right">{p.withPaid}</td>
+                <td className="py-1.5 text-right">{p.withDistant}</td>
               </tr>
             ))}
           </tbody>
@@ -194,6 +197,7 @@ export default function ReportPage() {
                         a.specialQuota ? "ОК" : "",
                         a.specialRight ? "ОП" : "",
                         a.isPaid ? "П" : "",
+                        a.isDistant ? "Д" : "",
                       ]
                         .filter(Boolean)
                         .join(" ")}

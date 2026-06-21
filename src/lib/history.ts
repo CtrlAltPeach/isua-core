@@ -15,6 +15,7 @@ export const LOGGED_FIELDS = [
   "specialQuota",
   "specialRight",
   "isPaid",
+  "isDistant",
   "documentType",
   "citizenship",
   "passportSeries",

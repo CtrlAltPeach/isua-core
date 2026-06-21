@@ -12,6 +12,7 @@ import {
   TrendingUp,
   TrendingDown,
   Wallet,
+  Laptop,
   Scale,
   FileDown,
 } from "lucide-react";
@@ -183,6 +184,16 @@ export function Dashboard() {
               }
             />
             <MetricCard
+              icon={<Laptop className="size-6" />}
+              label="Дистанционно"
+              value={stats.withDistant}
+              hint={
+                stats.totalApplicants > 0
+                  ? `${Math.round((stats.withDistant / stats.totalApplicants) * 100)}% от всех`
+                  : undefined
+              }
+            />
+            <MetricCard
               icon={<Scale className="size-6" />}
               label="Заявлений на место"
               value={stats.applicationsPerPlace?.toFixed(2) ?? "—"}
@@ -210,6 +221,7 @@ export function Dashboard() {
                     <th className="px-5 py-2.5 text-right font-medium">Согласия</th>
                     <th className="px-5 py-2.5 text-right font-medium">Документы</th>
                     <th className="px-5 py-2.5 text-right font-medium">Платные</th>
+                    <th className="px-5 py-2.5 text-right font-medium">Дистант</th>
                   </tr>
                 </thead>
                 <tbody>
@@ -259,6 +271,9 @@ export function Dashboard() {
                       </td>
                       <td className="px-5 py-2.5 text-right text-slate-600">
                         {p.withPaid}
+                      </td>
+                      <td className="px-5 py-2.5 text-right text-slate-600">
+                        {p.withDistant}
                       </td>
                     </tr>
                   ))}

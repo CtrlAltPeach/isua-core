@@ -30,6 +30,7 @@ interface FormValues {
   specialQuota: boolean;
   specialRight: boolean;
   isPaid: boolean;
+  isDistant: boolean;
   documentType: string; // "" | diploma | certificate
   passportSeries: string;
   passportNumber: string;
@@ -79,6 +80,7 @@ function defaultsFrom(a: ApplicantWithProgram | null): FormValues {
     specialQuota: a?.specialQuota ?? false,
     specialRight: a?.specialRight ?? false,
     isPaid: a?.isPaid ?? false,
+    isDistant: a?.isDistant ?? false,
     documentType: a?.documentType ?? "",
     passportSeries: a?.passportSeries ?? "",
     passportNumber: a?.passportNumber ?? "",
@@ -266,6 +268,7 @@ export function ApplicantFormModal({
       specialQuota: v.specialQuota,
       specialRight: v.specialRight,
       isPaid: v.isPaid,
+      isDistant: v.isDistant,
       documentType: v.documentType || null,
       passportSeries: v.passportSeries.trim() || null,
       passportNumber: v.passportNumber.trim() || null,
@@ -422,6 +425,7 @@ export function ApplicantFormModal({
               {checkbox("specialQuota", "Особая квота")}
               {checkbox("specialRight", "Особое право")}
               {checkbox("isPaid", "Платное обучение")}
+              {checkbox("isDistant", "Дистант")}
             </div>
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>

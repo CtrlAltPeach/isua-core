@@ -250,6 +250,7 @@ export interface ProgramStatRow {
   withConsent: number;
   withDocuments: number;
   withPaid: number;
+  withDistant: number;
   newToday: number;
   consentFillPercent: number;
   applied: number;
@@ -267,6 +268,7 @@ export interface DailyStats {
   withConsent: number;
   withDocuments: number;
   withPaid: number;
+  withDistant: number;
   consentGivenToday: number;
   consentWithdrawnToday: number;
   totalPlaces: number;

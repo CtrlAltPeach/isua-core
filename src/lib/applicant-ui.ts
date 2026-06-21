@@ -32,6 +32,7 @@ export const FIELD_LABELS: Record<string, string> = {
   specialQuota: "Особая квота",
   specialRight: "Особое право",
   isPaid: "Платное обучение",
+  isDistant: "Дистанционное обучение",
   documentType: "Документ об образовании",
   citizenship: "Гражданство",
   passportSeries: "Паспорт (серия)",
@@ -83,6 +84,7 @@ export function formatHistoryValue(
       "specialQuota",
       "specialRight",
       "isPaid",
+      "isDistant",
     ].includes(field)
   ) {
     return value === "true" ? "Да" : "Нет";

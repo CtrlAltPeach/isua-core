@@ -74,6 +74,7 @@ model Applicant {
   specialQuota      Boolean @default(false) // особая квота
   specialRight      Boolean @default(false) // особое право
   isPaid            Boolean @default(false) // платное обучение
+  isDistant         Boolean @default(false) // дистанционное обучение
 
   // Документ об образовании и гражданство
   documentType DocumentType? // диплом | аттестат

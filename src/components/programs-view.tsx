@@ -106,6 +106,11 @@ function ProgramCard({
             Платных: {p.withPaid}
           </span>
         )}
+        {p.withDistant > 0 && (
+          <span className="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-700">
+            Дистант: {p.withDistant}
+          </span>
+        )}
       </div>
 
       {/* Топ-3 по баллам */}

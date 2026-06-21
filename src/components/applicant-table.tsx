@@ -123,6 +123,14 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
           П
         </span>
       )}
+      {a.isDistant && (
+        <span
+          title="Дистанционное обучение"
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-sky-100 text-xs font-bold text-sky-700"
+        >
+          Д
+        </span>
+      )}
       {a.notes && (
         <span
           title={a.notes}

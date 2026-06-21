@@ -35,7 +35,7 @@
 - **Applicant:**
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
   - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100), additionalScores, totalScore (auto: сумма топ-3 предметов + доп.баллы, без mathBase)
-  - Согласия: consentToEnroll (bool), documentsComplete (bool); квоты: specialQuota, isPaid
+  - Согласия: consentToEnroll (bool), documentsComplete (bool); флаги: specialQuota, specialRight, isPaid, isDistant (дистант)
   - Документы: documentType (diploma|certificate), citizenship, passportSeries, passportNumber
   - Персональные: registrationAddress?, inn?, snils?, notes?
   - ⚠️ passportSeries/passportNumber/inn/snils хранятся ЗАШИФРОВАННЫМИ (AES-256-GCM, enc:v1:…)

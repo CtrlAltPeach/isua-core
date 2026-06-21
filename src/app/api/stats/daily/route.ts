@@ -21,6 +21,7 @@ export async function GET(req: NextRequest) {
     withConsent,
     withDocuments,
     withPaid,
+    withDistant,
     newToday,
     consentChangesToday,
     programs,
@@ -30,6 +31,7 @@ export async function GET(req: NextRequest) {
     prisma.applicant.count({ where: { consentToEnroll: true } }),
     prisma.applicant.count({ where: { documentsComplete: true } }),
     prisma.applicant.count({ where: { isPaid: true } }),
+    prisma.applicant.count({ where: { isDistant: true } }),
     // Новые заявления за день: созданные в этот день.
     prisma.applicant.count({
       where: { createdAt: { gte: dayStart, lt: dayEnd } },
@@ -56,6 +58,7 @@ export async function GET(req: NextRequest) {
             consentToEnroll: true,
             documentsComplete: true,
             isPaid: true,
+            isDistant: true,
             createdAt: true,
           },
         },
@@ -131,6 +134,7 @@ export async function GET(req: NextRequest) {
       withConsent,
       withDocuments: apps.filter((a) => a.documentsComplete).length,
       withPaid: apps.filter((a) => a.isPaid).length,
+      withDistant: apps.filter((a) => a.isDistant).length,
       newToday,
       // Укомплектованность бюджетных мест согласиями (%).
       consentFillPercent:
@@ -152,6 +156,7 @@ export async function GET(req: NextRequest) {
     withConsent,
     withDocuments,
     withPaid,
+    withDistant,
     consentGivenToday,
     consentWithdrawnToday,
     totalPlaces,

@@ -96,6 +96,7 @@ export async function PUT(
     "specialQuota",
     "specialRight",
     "isPaid",
+    "isDistant",
     "documentType",
     "citizenship",
     "passportSeries",
