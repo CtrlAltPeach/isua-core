@@ -50,6 +50,25 @@ export function tzOffsetMinutes(date: Date, timeZone: string): number {
 }
 
 /**
+ * Текущая календарная дата (YYYY-MM-DD) в заданной таймзоне.
+ * Важно для «сегодня»: брать локальную дату зоны, а не UTC-дату — иначе возле
+ * полуночи (для зон ≠ UTC) «сегодня» сдвигается на сутки.
+ */
+export function todayInTimeZone(timeZone: string): string {
+  const parts = new Intl.DateTimeFormat("en-CA", {
+    timeZone,
+    year: "numeric",
+    month: "2-digit",
+    day: "2-digit",
+  }).formatToParts(new Date());
+  const map: Record<string, string> = {};
+  for (const p of parts) {
+    if (p.type !== "literal") map[p.type] = p.value;
+  }
+  return `${map.year}-${map.month}-${map.day}`;
+}
+
+/**
  * Границы суток [start, end) в UTC для календарной даты dateStr (YYYY-MM-DD)
  * в заданной таймзоне. Корректно для любой зоны и для дат со сменой DST.
  */

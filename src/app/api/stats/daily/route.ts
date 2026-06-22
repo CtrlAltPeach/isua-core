@@ -4,7 +4,7 @@ import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/http";
-import { dayBoundsUTC } from "@/lib/timezone";
+import { dayBoundsUTC, todayInTimeZone } from "@/lib/timezone";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
@@ -12,7 +12,9 @@ export async function GET(req: NextRequest) {
 
   const sp = req.nextUrl.searchParams;
   const timezone = sp.get("timezone") ?? "Europe/Moscow";
-  const dateStr = sp.get("date") ?? new Date().toISOString().slice(0, 10);
+  // «Сегодня» — по локальной дате таймзоны, НЕ по UTC (иначе возле полуночи
+  // в зонах ≠ UTC окно суток сдвигается на день).
+  const dateStr = sp.get("date") ?? todayInTimeZone(timezone);
   const [dayStart, dayEnd] = dayBoundsUTC(dateStr, timezone);
 
   const [

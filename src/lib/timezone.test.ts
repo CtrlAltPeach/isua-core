@@ -3,6 +3,7 @@ import {
   tzOffsetMinutes,
   dayBoundsUTC,
   detectTimezone,
+  todayInTimeZone,
   FALLBACK_TIMEZONE,
 } from "@/lib/timezone";
 
@@ -53,6 +54,24 @@ describe("dayBoundsUTC", () => {
     const before = new Date("2026-06-16T20:00:00Z");
     expect(inside >= start && inside < end).toBe(true);
     expect(before >= start && before < end).toBe(false);
+  });
+});
+
+describe("todayInTimeZone", () => {
+  afterEach(() => vi.useRealTimers());
+
+  it("возле полуночи берёт ЛОКАЛЬНУЮ дату зоны, а не UTC", () => {
+    // 2026-06-22 23:00 UTC = 2026-06-23 02:00 МСК (UTC+3).
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-06-22T23:00:00Z"));
+    expect(todayInTimeZone("Europe/Moscow")).toBe("2026-06-23"); // локально уже 23-е
+    expect(todayInTimeZone("UTC")).toBe("2026-06-22"); // по UTC ещё 22-е
+  });
+
+  it("формат YYYY-MM-DD с ведущими нулями", () => {
+    vi.useFakeTimers();
+    vi.setSystemTime(new Date("2026-03-05T12:00:00Z"));
+    expect(todayInTimeZone("UTC")).toBe("2026-03-05");
   });
 });
 
