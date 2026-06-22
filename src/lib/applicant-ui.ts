@@ -22,6 +22,7 @@ export const STATUS_OPTIONS: { value: ApplicantStatus; label: string }[] = (
 
 // Человекочитаемые названия полей (для истории изменений).
 export const FIELD_LABELS: Record<string, string> = {
+  created: "Создание записи",
   fullName: "ФИО",
   phone: "Телефон",
   email: "Email",

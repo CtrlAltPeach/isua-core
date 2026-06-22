@@ -86,15 +86,21 @@ export function HistoryModal({
                     {fieldLabel(e.fieldName)}
                   </td>
                   <td className="py-2 pr-3">
-                    <span className="inline-flex items-center gap-1.5">
-                      <span className="text-slate-400 line-through">
-                        {formatHistoryValue(e.fieldName, e.oldValue, programNames)}
-                      </span>
-                      <ArrowRight className="size-3.5 text-slate-400" />
+                    {e.fieldName === "created" ? (
                       <span className="font-medium text-emerald-700">
-                        {formatHistoryValue(e.fieldName, e.newValue, programNames)}
+                        Запись создана
                       </span>
-                    </span>
+                    ) : (
+                      <span className="inline-flex items-center gap-1.5">
+                        <span className="text-slate-400 line-through">
+                          {formatHistoryValue(e.fieldName, e.oldValue, programNames)}
+                        </span>
+                        <ArrowRight className="size-3.5 text-slate-400" />
+                        <span className="font-medium text-emerald-700">
+                          {formatHistoryValue(e.fieldName, e.newValue, programNames)}
+                        </span>
+                      </span>
+                    )}
                   </td>
                   <td className="py-2 pr-3 text-slate-600">
                     {e.changedBy.username}

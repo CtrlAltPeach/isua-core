@@ -20,20 +20,46 @@ export async function GET(
   const limit = Math.min(200, Math.max(1, Number(sp.get("limit")) || 50));
   const offset = Math.max(0, Number(sp.get("offset")) || 0);
 
-  const entries = await prisma.history.findMany({
-    where: { applicantId },
-    orderBy: { changedAt: "desc" },
-    skip: offset,
-    take: limit,
-    select: {
-      id: true,
-      fieldName: true,
-      oldValue: true,
-      newValue: true,
-      changedAt: true,
-      changedBy: { select: { id: true, username: true, email: true } },
-    },
-  });
+  const [entries, total, applicant] = await Promise.all([
+    prisma.history.findMany({
+      where: { applicantId },
+      orderBy: { changedAt: "desc" },
+      skip: offset,
+      take: limit,
+      select: {
+        id: true,
+        fieldName: true,
+        oldValue: true,
+        newValue: true,
+        changedAt: true,
+        changedBy: { select: { id: true, username: true, email: true } },
+      },
+    }),
+    prisma.history.count({ where: { applicantId } }),
+    prisma.applicant.findUnique({
+      where: { id: applicantId },
+      select: {
+        createdAt: true,
+        createdBy: { select: { id: true, username: true, email: true } },
+      },
+    }),
+  ]);
 
-  return ok(entries);
+  // Событие «создание записи» — самое старое в истории. Не храним отдельной
+  // строкой: берём создателя (createdByUserId) и дату прямо у абитуриента,
+  // поэтому работает и для записей, заведённых до этой логики. Показываем на
+  // последней (старейшей) странице, после самой ранней реальной правки.
+  const result: unknown[] = [...entries];
+  if (applicant && offset + entries.length >= total) {
+    result.push({
+      id: 0, // синтетическая запись (реальные id > 0)
+      fieldName: "created",
+      oldValue: null,
+      newValue: null,
+      changedAt: applicant.createdAt,
+      changedBy: applicant.createdBy,
+    });
+  }
+
+  return ok(result);
 }
