@@ -1,6 +1,6 @@
 // Дашборд: карточки метрик за день + таблица конкурса по программам.
 "use client";
-import { Fragment, useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useRef, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -142,8 +142,12 @@ export function Dashboard() {
   const [stats, setStats] = useState<DailyStats | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  // Время последней загрузки — чтобы не перезапрашивать слишком часто
+  // при возврате к вкладке (защита от «бёрста» alt-tab).
+  const lastLoadAt = useRef(0);
 
   const load = useCallback(async () => {
+    lastLoadAt.current = Date.now();
     setLoading(true);
     setError(null);
     try {
@@ -162,6 +166,24 @@ export function Dashboard() {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
+  }, [load]);
+
+  // Обновление при возврате к вкладке/окну (вариант №2): когда оператор
+  // снова видит дашборд, тихо перезапрашиваем статистику — чтобы подхватить
+  // изменения админа (напр. группы программ). Защита: не чаще раза в 15 с.
+  useEffect(() => {
+    const REFRESH_GUARD_MS = 15_000;
+    const refreshIfStale = () => {
+      if (document.visibilityState !== "visible") return;
+      if (Date.now() - lastLoadAt.current < REFRESH_GUARD_MS) return;
+      void load();
+    };
+    document.addEventListener("visibilitychange", refreshIfStale);
+    window.addEventListener("focus", refreshIfStale);
+    return () => {
+      document.removeEventListener("visibilitychange", refreshIfStale);
+      window.removeEventListener("focus", refreshIfStale);
+    };
   }, [load]);
 
   const docPercent =

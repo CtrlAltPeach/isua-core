@@ -4,7 +4,6 @@ import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Check, X, Target } from "lucide-react";
 import {
   programsApi,
-  programGroupsApi,
   ApiError,
   type ProgramSummary,
   type ProgramGroupRow,
@@ -15,9 +14,16 @@ import { Button, Input, Card, Modal, Label, Select } from "@/components/ui";
 import { SUBJECT_LABELS } from "@/lib/thresholds";
 import { SCORE_FIELDS } from "@/lib/scoring";
 
-export function ProgramManager() {
+export function ProgramManager({
+  groups,
+  onGroupsChanged,
+}: {
+  // Список групп — единый источник из ManagePage (для select).
+  groups: ProgramGroupRow[];
+  // Сообщить родителю, что счётчики групп могли измениться (тихий refresh).
+  onGroupsChanged: () => void | Promise<void>;
+}) {
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
-  const [groups, setGroups] = useState<ProgramGroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [thresholdFor, setThresholdFor] = useState<ProgramSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -31,12 +37,7 @@ export function ProgramManager() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [progs, grps] = await Promise.all([
-        programsApi.list(),
-        programGroupsApi.list(),
-      ]);
-      setPrograms(progs);
-      setGroups(grps);
+      setPrograms(await programsApi.list());
     } catch {
       setError("Не удалось загрузить программы");
     } finally {
@@ -45,14 +46,28 @@ export function ProgramManager() {
   }, []);
 
   // Смена группы программы (select). null = «Без группы».
+  // Оптимистично: меняем строку сразу (без перезагрузки → без мелькания),
+  // запрос в фоне; при ошибке откатываем и показываем toast.
   const changeGroup = async (p: ProgramSummary, value: string) => {
     const programGroupId = value === "" ? null : Number(value);
     if (programGroupId === (p.groupId ?? null)) return;
+    const groupName =
+      programGroupId === null
+        ? null
+        : (groups.find((g) => g.id === programGroupId)?.name ?? null);
+    const snapshot = programs;
     setError(null);
+    setPrograms((list) =>
+      list.map((x) =>
+        x.id === p.id ? { ...x, groupId: programGroupId, groupName } : x,
+      ),
+    );
     try {
       await programsApi.update(p.id, { programGroupId });
-      await load();
+      // Счётчики «Программ» в блоке групп могли измениться — тихо обновим.
+      void onGroupsChanged();
     } catch (e) {
+      setPrograms(snapshot); // откат
       const msg = e instanceof ApiError ? e.message : "Не удалось сменить группу";
       setError(msg);
       toast.error(msg);
@@ -115,6 +130,7 @@ export function ProgramManager() {
       await programsApi.remove(p.id);
       toast.success(`Программа «${p.name}» удалена`);
       await load();
+      void onGroupsChanged(); // счётчик «Программ» в группе мог измениться
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Не удалось удалить";
       setError(msg);

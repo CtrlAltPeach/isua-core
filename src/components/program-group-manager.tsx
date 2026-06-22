@@ -1,7 +1,7 @@
 // Управление группами программ (категориями): список + создание/переименование/
 // порядок/удаление. Назначение программ в группу — в ProgramManager (select).
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Check, X } from "lucide-react";
 import {
   programGroupsApi,
@@ -12,9 +12,17 @@ import { confirmDialog } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
 import { Button, Input, Card } from "@/components/ui";
 
-export function ProgramGroupManager() {
-  const [groups, setGroups] = useState<ProgramGroupRow[]>([]);
-  const [loading, setLoading] = useState(true);
+export function ProgramGroupManager({
+  groups,
+  loading,
+  onChanged,
+}: {
+  // Список групп и флаг загрузки — из ManagePage (единый источник).
+  groups: ProgramGroupRow[];
+  loading: boolean;
+  // Перечитать группы у родителя после CRUD.
+  onChanged: () => void | Promise<void>;
+}) {
   const [error, setError] = useState<string | null>(null);
 
   // Строка в режиме редактирования (id) или создания ("new").
@@ -22,22 +30,6 @@ export function ProgramGroupManager() {
   const [draftName, setDraftName] = useState("");
   const [draftOrder, setDraftOrder] = useState("");
   const [busy, setBusy] = useState(false);
-
-  const load = useCallback(async () => {
-    setLoading(true);
-    try {
-      setGroups(await programGroupsApi.list());
-    } catch {
-      setError("Не удалось загрузить группы");
-    } finally {
-      setLoading(false);
-    }
-  }, []);
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    void load();
-  }, [load]);
 
   const startCreate = () => {
     setEditId("new");
@@ -68,7 +60,7 @@ export function ProgramGroupManager() {
         await programGroupsApi.update(editId, data);
       }
       setEditId(null);
-      await load();
+      await onChanged();
     } catch (e) {
       setError(e instanceof ApiError ? e.message : "Ошибка сохранения");
     } finally {
@@ -92,7 +84,7 @@ export function ProgramGroupManager() {
     try {
       await programGroupsApi.remove(g.id);
       toast.success(`Группа «${g.name}» удалена`);
-      await load();
+      await onChanged();
     } catch (e) {
       const msg = e instanceof ApiError ? e.message : "Не удалось удалить";
       setError(msg);
