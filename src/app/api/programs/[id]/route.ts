@@ -40,10 +40,17 @@ export async function PUT(
   }
 
   // Json-поле: null нужно передавать как Prisma.JsonNull.
-  const { minScores, ...rest } = parsed.data;
+  const { minScores, programGroupId, ...rest } = parsed.data;
   const data: Prisma.ProgramUpdateInput = { ...rest };
   if (minScores !== undefined) {
     data.minScores = minScores === null ? Prisma.JsonNull : minScores;
+  }
+  // Группа: null → отвязать, число → привязать, undefined → не трогать.
+  if (programGroupId !== undefined) {
+    data.programGroup =
+      programGroupId === null
+        ? { disconnect: true }
+        : { connect: { id: programGroupId } };
   }
 
   const updated = await prisma.program.update({ where: { id }, data });

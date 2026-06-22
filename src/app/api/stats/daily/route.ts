@@ -44,12 +44,20 @@ export async function GET(req: NextRequest) {
         fieldName: "consentToEnroll",
         changedAt: { gte: dayStart, lt: dayEnd },
       },
-      select: { applicantId: true, oldValue: true, newValue: true, changedAt: true },
+      select: {
+        applicantId: true,
+        oldValue: true,
+        newValue: true,
+        changedAt: true,
+        // programId нужен, чтобы отнести нетто-согласие за день к программе.
+        applicant: { select: { programId: true } },
+      },
       orderBy: { changedAt: "asc" },
     }),
     prisma.program.findMany({
       orderBy: { id: "asc" },
       include: {
+        programGroup: { select: { id: true, name: true, sortOrder: true } },
         applicants: {
           select: {
             fullName: true,
@@ -75,7 +83,7 @@ export async function GET(req: NextRequest) {
   // Записи уже отсортированы по changedAt asc.
   const consentByApplicant = new Map<
     number,
-    { first: string | null; last: string | null }
+    { first: string | null; last: string | null; programId: number | null }
   >();
   for (const h of consentChangesToday) {
     const cur = consentByApplicant.get(h.applicantId);
@@ -85,15 +93,29 @@ export async function GET(req: NextRequest) {
       consentByApplicant.set(h.applicantId, {
         first: h.oldValue, // состояние ДО первого изменения за день
         last: h.newValue,
+        programId: h.applicant?.programId ?? null,
       });
     }
   }
   let consentGivenToday = 0;
   let consentWithdrawnToday = 0;
-  for (const { first, last } of consentByApplicant.values()) {
+  // Нетто-согласия за день в разрезе программы (для столбца «Согласия»).
+  const givenByProgram = new Map<number, number>();
+  const withdrawnByProgram = new Map<number, number>();
+  for (const { first, last, programId } of consentByApplicant.values()) {
     if (first === last) continue; // туда-сюда за день → нулевое движение
-    if (last === "true") consentGivenToday++;
-    else if (last === "false") consentWithdrawnToday++;
+    if (last === "true") {
+      consentGivenToday++;
+      if (programId != null)
+        givenByProgram.set(programId, (givenByProgram.get(programId) ?? 0) + 1);
+    } else if (last === "false") {
+      consentWithdrawnToday++;
+      if (programId != null)
+        withdrawnByProgram.set(
+          programId,
+          (withdrawnByProgram.get(programId) ?? 0) + 1,
+        );
+    }
   }
 
   const totalPlaces = programs.reduce((s, p) => s + p.places, 0);
@@ -126,6 +148,8 @@ export async function GET(req: NextRequest) {
     return {
       programId: p.id,
       program: p.name,
+      groupId: p.programGroup?.id ?? null,
+      groupName: p.programGroup?.name ?? null,
       places: p.places,
       applicants: apps.length,
       competition:
@@ -136,6 +160,9 @@ export async function GET(req: NextRequest) {
       withPaid: apps.filter((a) => a.isPaid).length,
       withDistant: apps.filter((a) => a.isDistant).length,
       newToday,
+      // Нетто-согласия за день по этой программе.
+      consentGivenToday: givenByProgram.get(p.id) ?? 0,
+      consentWithdrawnToday: withdrawnByProgram.get(p.id) ?? 0,
       // Укомплектованность бюджетных мест согласиями (%).
       consentFillPercent:
         p.places > 0 ? Math.round((withConsent / p.places) * 100) : 0,
@@ -143,6 +170,65 @@ export async function GET(req: NextRequest) {
       applied: apps.filter((a) => a.status === "applied").length,
       withdrawn: apps.filter((a) => a.status === "withdrawn").length,
       topApplicants,
+    };
+  });
+
+  // --- Группировка программ с подытогами ---
+  // Метаданные групп (имя + порядок) из загруженных программ.
+  const groupMeta = new Map<number, { name: string; sortOrder: number }>();
+  for (const p of programs) {
+    if (p.programGroup) {
+      groupMeta.set(p.programGroup.id, {
+        name: p.programGroup.name,
+        sortOrder: p.programGroup.sortOrder,
+      });
+    }
+  }
+  // Раскладываем строки по группам (null = «Без группы»).
+  const rowsByGroup = new Map<number | null, typeof byProgram>();
+  for (const row of byProgram) {
+    const key = row.groupId;
+    if (!rowsByGroup.has(key)) rowsByGroup.set(key, []);
+    rowsByGroup.get(key)!.push(row);
+  }
+  // Порядок: реальные группы по sortOrder (затем имя), «Без группы» — в конце.
+  const realKeys = [...rowsByGroup.keys()]
+    .filter((k): k is number => k !== null)
+    .sort((a, b) => {
+      const A = groupMeta.get(a)!;
+      const B = groupMeta.get(b)!;
+      return A.sortOrder - B.sortOrder || A.name.localeCompare(B.name);
+    });
+  const orderedKeys: (number | null)[] = [
+    ...realKeys,
+    ...(rowsByGroup.has(null) ? [null] : []),
+  ];
+  const byGroup = orderedKeys.map((key) => {
+    const rows = rowsByGroup.get(key)!;
+    const subtotal = rows.reduce(
+      (s, r) => ({
+        places: s.places + r.places,
+        applicants: s.applicants + r.applicants,
+        withConsent: s.withConsent + r.withConsent,
+        newToday: s.newToday + r.newToday,
+        consentGivenToday: s.consentGivenToday + r.consentGivenToday,
+        consentWithdrawnToday:
+          s.consentWithdrawnToday + r.consentWithdrawnToday,
+      }),
+      {
+        places: 0,
+        applicants: 0,
+        withConsent: 0,
+        newToday: 0,
+        consentGivenToday: 0,
+        consentWithdrawnToday: 0,
+      },
+    );
+    return {
+      groupId: key,
+      groupName: key === null ? null : groupMeta.get(key)!.name,
+      programs: rows,
+      subtotal,
     };
   });
 
@@ -172,5 +258,6 @@ export async function GET(req: NextRequest) {
         ? Math.round((withConsent / totalApplications) * 100)
         : 0,
     byProgram,
+    byGroup,
   });
 }

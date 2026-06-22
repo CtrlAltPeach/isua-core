@@ -12,7 +12,10 @@ export async function GET(req: NextRequest) {
 
   const programs = await prisma.program.findMany({
     orderBy: { id: "asc" },
-    include: { _count: { select: { applicants: true } } },
+    include: {
+      _count: { select: { applicants: true } },
+      programGroup: { select: { id: true, name: true } },
+    },
   });
 
   const result = programs.map((p) => ({
@@ -21,6 +24,9 @@ export async function GET(req: NextRequest) {
     places: p.places,
     minScores: parseMinScores(p.minScores),
     applicantCount: p._count.applicants,
+    // Группа программ (null = «Без группы»).
+    groupId: p.programGroup?.id ?? null,
+    groupName: p.programGroup?.name ?? null,
     // Конкурс: абитуриентов на место (0 мест → null).
     competition:
       p.places > 0
@@ -48,9 +54,16 @@ export async function POST(req: NextRequest) {
   });
   if (existing) return fail("Программа с таким названием уже есть", 409);
 
-  const { name, places, minScores } = parsed.data;
+  const { name, places, minScores, programGroupId } = parsed.data;
   const created = await prisma.program.create({
-    data: { name, places, ...(minScores ? { minScores } : {}) },
+    data: {
+      name,
+      places,
+      ...(minScores ? { minScores } : {}),
+      ...(programGroupId != null
+        ? { programGroup: { connect: { id: programGroupId } } }
+        : {}),
+    },
   });
   return ok(created, 201);
 }

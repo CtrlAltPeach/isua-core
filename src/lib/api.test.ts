@@ -74,7 +74,7 @@ describe("api request() — retry/переподключение", () => {
 
     const err = await runWithTimers(request("/applicants")).catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
-    expect(err.status).toBe(0);
+    expect((err as ApiError).status).toBe(0);
     expect(fetchMock).toHaveBeenCalledTimes(3);
   });
 
@@ -86,7 +86,7 @@ describe("api request() — retry/переподключение", () => {
       request("/applicants", { method: "POST", body: "{}" }),
     ).catch((e) => e);
     expect(err).toBeInstanceOf(ApiError);
-    expect(err.status).toBe(0);
+    expect((err as ApiError).status).toBe(0);
     expect(fetchMock).toHaveBeenCalledTimes(1); // без повторов
   });
 

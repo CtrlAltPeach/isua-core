@@ -2,15 +2,22 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { Plus, Pencil, Trash2, Loader2, Check, X, Target } from "lucide-react";
-import { programsApi, ApiError, type ProgramSummary } from "@/lib/api";
+import {
+  programsApi,
+  programGroupsApi,
+  ApiError,
+  type ProgramSummary,
+  type ProgramGroupRow,
+} from "@/lib/api";
 import { confirmDialog } from "@/lib/confirm";
 import { toast } from "@/lib/toast";
-import { Button, Input, Card, Modal, Label } from "@/components/ui";
+import { Button, Input, Card, Modal, Label, Select } from "@/components/ui";
 import { SUBJECT_LABELS } from "@/lib/thresholds";
 import { SCORE_FIELDS } from "@/lib/scoring";
 
 export function ProgramManager() {
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
+  const [groups, setGroups] = useState<ProgramGroupRow[]>([]);
   const [loading, setLoading] = useState(true);
   const [thresholdFor, setThresholdFor] = useState<ProgramSummary | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -24,13 +31,33 @@ export function ProgramManager() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setPrograms(await programsApi.list());
+      const [progs, grps] = await Promise.all([
+        programsApi.list(),
+        programGroupsApi.list(),
+      ]);
+      setPrograms(progs);
+      setGroups(grps);
     } catch {
       setError("Не удалось загрузить программы");
     } finally {
       setLoading(false);
     }
   }, []);
+
+  // Смена группы программы (select). null = «Без группы».
+  const changeGroup = async (p: ProgramSummary, value: string) => {
+    const programGroupId = value === "" ? null : Number(value);
+    if (programGroupId === (p.groupId ?? null)) return;
+    setError(null);
+    try {
+      await programsApi.update(p.id, { programGroupId });
+      await load();
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Не удалось сменить группу";
+      setError(msg);
+      toast.error(msg);
+    }
+  };
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
@@ -120,13 +147,14 @@ export function ProgramManager() {
             <th className="px-5 py-2.5 font-medium">Название</th>
             <th className="px-5 py-2.5 text-right font-medium">Мест</th>
             <th className="px-5 py-2.5 text-right font-medium">Абитуриентов</th>
+            <th className="px-5 py-2.5 font-medium">Группа</th>
             <th className="w-24 px-5 py-2.5"></th>
           </tr>
         </thead>
         <tbody>
           {loading ? (
             <tr>
-              <td colSpan={4} className="py-10 text-center">
+              <td colSpan={5} className="py-10 text-center">
                 <Loader2 className="mx-auto size-6 animate-spin text-emerald-500" />
               </td>
             </tr>
@@ -168,6 +196,21 @@ export function ProgramManager() {
                     </td>
                     <td className="px-5 py-2.5 text-right text-slate-600">
                       {p.applicantCount}
+                    </td>
+                    <td className="px-5 py-2.5">
+                      <Select
+                        value={p.groupId ?? ""}
+                        onChange={(e) => changeGroup(p, e.target.value)}
+                        className="h-9"
+                        aria-label={`Группа программы ${p.name}`}
+                      >
+                        <option value="">Без группы</option>
+                        {groups.map((g) => (
+                          <option key={g.id} value={g.id}>
+                            {g.name}
+                          </option>
+                        ))}
+                      </Select>
                     </td>
                     <td className="px-5 py-2.5">
                       <div className="flex items-center justify-end gap-1">
@@ -350,6 +393,7 @@ function EditRow({
         />
       </td>
       <td className="px-5 py-2 text-right text-slate-400">—</td>
+      <td className="px-5 py-2 text-slate-400">—</td>
       <td className="px-5 py-2">
         <div className="flex items-center justify-end gap-1">
           <button

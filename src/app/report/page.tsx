@@ -1,7 +1,7 @@
 // Печатная страница отчёта (дневная статистика + рейтинг по программам).
 // Открывается отдельно; кнопка «Печать / Сохранить PDF» вызывает window.print().
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { Loader2, Printer } from "lucide-react";
 import {
   statsApi,
@@ -59,6 +59,11 @@ export default function ReportPage() {
       </div>
     );
   }
+
+  // Показывать заголовки групп, если есть хотя бы одна реальная группа.
+  const showGroupHeaders = !(
+    stats.byGroup.length === 1 && stats.byGroup[0].groupId === null
+  );
 
   return (
     <div className="mx-auto max-w-4xl bg-white p-8 text-slate-900">
@@ -134,21 +139,35 @@ export default function ReportPage() {
             </tr>
           </thead>
           <tbody>
-            {stats.byProgram.map((p) => (
-              <tr key={p.program} className="border-b border-slate-200">
-                <td className="py-1.5 font-medium">{p.program}</td>
-                <td className="py-1.5 text-right">{p.places}</td>
-                <td className="py-1.5 text-right">{p.applicants}</td>
-                <td className="py-1.5 text-right">
-                  {p.competition?.toFixed(2) ?? "—"}
-                </td>
-                <td className="py-1.5 text-right">
-                  {p.avgScore?.toFixed(1) ?? "—"}
-                </td>
-                <td className="py-1.5 text-right">{p.withConsent}</td>
-                <td className="py-1.5 text-right">{p.withPaid}</td>
-                <td className="py-1.5 text-right">{p.withDistant}</td>
-              </tr>
+            {stats.byGroup.map((g) => (
+              <Fragment key={g.groupId ?? "none"}>
+                {showGroupHeaders && (
+                  <tr className="border-b border-slate-300 bg-slate-100">
+                    <td
+                      colSpan={8}
+                      className="py-1 font-semibold text-slate-700"
+                    >
+                      {g.groupName ?? "Без группы"}
+                    </td>
+                  </tr>
+                )}
+                {g.programs.map((p) => (
+                  <tr key={p.program} className="border-b border-slate-200">
+                    <td className="py-1.5 font-medium">{p.program}</td>
+                    <td className="py-1.5 text-right">{p.places}</td>
+                    <td className="py-1.5 text-right">{p.applicants}</td>
+                    <td className="py-1.5 text-right">
+                      {p.competition?.toFixed(2) ?? "—"}
+                    </td>
+                    <td className="py-1.5 text-right">
+                      {p.avgScore?.toFixed(1) ?? "—"}
+                    </td>
+                    <td className="py-1.5 text-right">{p.withConsent}</td>
+                    <td className="py-1.5 text-right">{p.withPaid}</td>
+                    <td className="py-1.5 text-right">{p.withDistant}</td>
+                  </tr>
+                ))}
+              </Fragment>
             ))}
           </tbody>
         </table>

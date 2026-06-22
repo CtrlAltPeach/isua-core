@@ -24,6 +24,16 @@ enum DocumentType {
   certificate // аттестат
 }
 
+// Группа (категория) программ — для группировки в статистике и отчётах.
+// Программы без группы показываются блоком «Без группы».
+model ProgramGroup {
+  id        Int       @id @default(autoincrement())
+  name      String    @unique
+  sortOrder Int       @default(0) // порядок вывода групп
+  programs  Program[]
+  createdAt DateTime  @default(now())
+}
+
 // Образовательная программа (5 программ: ИСД, ТГСВ, ЗиК, ЗиК-КИ, ЗиК-ГК).
 model Program {
   id         Int         @id @default(autoincrement())
@@ -32,8 +42,13 @@ model Program {
   // Минимальные баллы по предметам, напр. {"russian":36,"mathProfile":27,...}.
   // null/отсутствие ключа = порог не задан.
   minScores  Json?
+  // Группа программ (опционально). Удаление группы → SetNull (программа остаётся).
+  programGroupId Int?
+  programGroup   ProgramGroup? @relation(fields: [programGroupId], references: [id], onDelete: SetNull)
   applicants Applicant[]
   createdAt  DateTime    @default(now())
+
+  @@index([programGroupId])
 }
 
 // Роль пользователя.

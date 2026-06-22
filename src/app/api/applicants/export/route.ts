@@ -30,7 +30,11 @@ export async function GET(req: NextRequest) {
       include: { program: { select: { name: true } } },
     }),
     prisma.program.findMany({
-      select: { name: true, places: true },
+      select: {
+        name: true,
+        places: true,
+        programGroup: { select: { name: true } },
+      },
       orderBy: { id: "asc" },
     }),
   ]);
@@ -168,6 +172,7 @@ export async function GET(req: NextRequest) {
   st.getCell(`C${hdr.number}`).value = "Мест";
   st.getCell(`D${hdr.number}`).value = "Конкурс";
   st.getCell(`E${hdr.number}`).value = "Ср. балл";
+  st.getCell(`F${hdr.number}`).value = "Группа";
   const colProgram = "C"; // Программа на листе данных
   for (const p of programs) {
     const r = st.addRow({ k: p.name });
@@ -182,6 +187,8 @@ export async function GET(req: NextRequest) {
     r.getCell(5).value = {
       formula: `IFERROR(ROUND(AVERAGEIF('${D}'!${colProgram}2:${colProgram}${dataLast},"${p.name}",'${D}'!${colScore}2:${colScore}${dataLast}),1),0)`,
     } as ExcelJS.CellFormulaValue;
+    // Группа программы (или «Без группы»).
+    r.getCell(6).value = p.programGroup?.name ?? "Без группы";
   }
 
   const buffer = await wb.xlsx.writeBuffer();

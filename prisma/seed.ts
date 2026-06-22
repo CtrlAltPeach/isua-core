@@ -14,12 +14,19 @@ import { encrypt } from "../src/lib/crypto";
 
 const prisma = new PrismaClient();
 
+// Группы программ (демо). Используются только при SEED_DATA=1.
+const GROUPS = [
+  { name: "Инженерные", sortOrder: 1 },
+  { name: "Землеустройство", sortOrder: 2 },
+];
+
 // 4 программы (ЗиК удалена). Используются только при SEED_DATA=1.
+// group — имя группы из GROUPS (или null для «Без группы»).
 const PROGRAMS = [
-  { name: "ИСД", places: 100 },
-  { name: "ТГСВ", places: 80 },
-  { name: "ЗиК-КИ", places: 30 },
-  { name: "ЗиК-ГК", places: 20 },
+  { name: "ИСД", places: 100, group: "Инженерные" },
+  { name: "ТГСВ", places: 80, group: "Инженерные" },
+  { name: "ЗиК-КИ", places: 30, group: "Землеустройство" },
+  { name: "ЗиК-ГК", places: 20, group: "Землеустройство" },
 ];
 
 async function main() {
@@ -33,12 +40,25 @@ async function main() {
     return;
   }
 
+  // Группы программ — идемпотентно через upsert по уникальному name.
+  const groupIdByName = new Map<string, number>();
+  for (const g of GROUPS) {
+    const group = await prisma.programGroup.upsert({
+      where: { name: g.name },
+      update: { sortOrder: g.sortOrder },
+      create: g,
+    });
+    groupIdByName.set(g.name, group.id);
+  }
+  console.log(`Группы программ: ${GROUPS.length} шт.`);
+
   // Программы — идемпотентно через upsert по уникальному name.
   for (const p of PROGRAMS) {
+    const programGroupId = p.group ? (groupIdByName.get(p.group) ?? null) : null;
     await prisma.program.upsert({
       where: { name: p.name },
-      update: { places: p.places },
-      create: p,
+      update: { places: p.places, programGroupId },
+      create: { name: p.name, places: p.places, programGroupId },
     });
   }
   console.log(`Программы: ${PROGRAMS.length} шт.`);

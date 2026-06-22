@@ -3,7 +3,7 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 14 завершена — версия 0.14.0, ветка dev)
+## Текущее состояние (итерация 15 завершена — версия 0.15.0, ветка dev)
 > Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
 > Preview-деплой использует dev-БД (см. `ops/DATABASE_ENVIRONMENTS.md`).
 
@@ -29,9 +29,10 @@
   в БД, ключ ENCRYPTION_KEY. Шифрование на границе БД (`lib/applicant-pii.ts`).
 - Рантайм: Node.js (npm), НЕ Bun
 
-### Структура БД (5 моделей)
+### Структура БД (6 моделей)
 - **User:** id, email (uniq), username (uniq), passwordHash, role (admin|operator), tokenVersion (отзыв JWT), createdAt, lastLogin
-- **Program:** id, name (uniq), places (количество бюджетных мест), createdAt
+- **ProgramGroup:** id, name (uniq), sortOrder, createdAt — категория программ (группировка статистики/отчётов)
+- **Program:** id, name (uniq), places (количество бюджетных мест), minScores (Json?), programGroupId (FK→ProgramGroup, onDelete SetNull), createdAt
 - **Applicant:**
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
   - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100), additionalScores, totalScore (auto: сумма топ-3 предметов + доп.баллы, без mathBase)
@@ -86,9 +87,11 @@ PUT  /api/applicants/[id]     (version-based optimistic lock)
 DELETE /api/applicants/[id]
 GET  /api/applicants/[id]/history
 POST /api/applicants/bulk-delete
-GET  /api/programs            POST /api/programs
+GET  /api/programs            POST /api/programs   (отдаёт groupId/groupName, принимает programGroupId)
 PUT  /api/programs/[id]       DELETE /api/programs/[id]
-GET  /api/stats/daily
+GET  /api/program-groups      POST /api/program-groups            (admin)
+PUT  /api/program-groups/[id] DELETE /api/program-groups/[id]     (admin, SetNull)
+GET  /api/stats/daily         (byProgram + byGroup с подытогами; согласия сегодня в разрезе программы)
 GET  /api/users               PATCH /api/users/[id] (role)   DELETE /api/users/[id]
 GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 ```
@@ -100,17 +103,17 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
    строка-деталь (ПДн/заметка), история (часы), маркеры Б/О(ОК)/П
 3. `/programs`: карточки программ, места, конкурс, средний балл, топ-3
 4. `/statuses`: Kanban, 2 колонки (applied/withdrawn)
-5. `/manage`: программы CRUD + пороги, bulk-delete, UserManager (admin-only)
+5. `/manage`: группы программ CRUD, программы CRUD + пороги + назначение группы, bulk-delete, UserManager (admin-only)
 6. `/report`: PDF-отчёт (печать браузера)
 
 ### Статистика кода
 ~5500+ строк кода (без UI и hooks)
 15+ API endpoints
 8 основных компонентов
-5 моделей БД
+6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-71 тест (vitest: unit + интеграционные API)
+79 тестов (vitest: unit + интеграционные API)
 0 ESLint ошибок
 
 ---

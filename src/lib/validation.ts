@@ -10,12 +10,32 @@ const minScoresSchema = z
   .nullable()
   .optional();
 
+// Группа программ: id положительный, либо null (= «Без группы»).
+// Пусто/null/0 → null (снять группу); иначе — положительный int.
+const programGroupIdField = z
+  .preprocess(
+    (v) =>
+      v === "" || v === undefined || v === null || v === 0 || v === "0"
+        ? null
+        : v,
+    z.coerce.number().int().positive().nullable(),
+  )
+  .optional();
+
 export const programSchema = z.object({
   name: z.string().min(1, "Название обязательно").max(100),
   places: z.coerce.number().int().min(0, "Мест не может быть меньше 0"),
   minScores: minScoresSchema,
+  programGroupId: programGroupIdField,
 });
 export const updateProgramSchema = programSchema.partial();
+
+// --- Группа программ ---
+export const programGroupSchema = z.object({
+  name: z.string().min(1, "Название обязательно").max(100),
+  sortOrder: z.coerce.number().int().min(0).optional(),
+});
+export const updateProgramGroupSchema = programGroupSchema.partial();
 
 // --- Массовое удаление ---
 export const bulkDeleteSchema = z.object({

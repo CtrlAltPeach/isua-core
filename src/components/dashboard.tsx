@@ -1,6 +1,6 @@
 // Дашборд: карточки метрик за день + таблица конкурса по программам.
 "use client";
-import { useCallback, useEffect, useState } from "react";
+import { Fragment, useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Users,
@@ -16,7 +16,13 @@ import {
   Scale,
   FileDown,
 } from "lucide-react";
-import { statsApi, type DailyStats } from "@/lib/api";
+import {
+  statsApi,
+  type DailyStats,
+  type ProgramStatRow,
+  type ProgramGroupStats,
+  type ProgramGroupSubtotal,
+} from "@/lib/api";
 import { useAppStore } from "@/lib/store";
 import { Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -64,6 +70,72 @@ function MetricCard({
   );
 }
 
+// Карточка «… сегодня по программам» с группировкой и подытогами по группам.
+function GroupedCountCard({
+  title,
+  icon,
+  total,
+  byGroup,
+  valueOf,
+  subtotalOf,
+}: {
+  title: string;
+  icon: React.ReactNode;
+  total: number;
+  byGroup: ProgramGroupStats[];
+  valueOf: (row: ProgramStatRow) => number;
+  subtotalOf: (s: ProgramGroupSubtotal) => number;
+}) {
+  // Заголовки групп не показываем, если единственная группа — «Без группы».
+  const showGroupHeaders = !(
+    byGroup.length === 1 && byGroup[0].groupId === null
+  );
+  const num = (v: number) => (
+    <span
+      className={cn(
+        "text-sm font-semibold",
+        v > 0 ? "text-emerald-700" : "text-slate-400",
+      )}
+    >
+      {v > 0 ? `+${v}` : "0"}
+    </span>
+  );
+  return (
+    <Card className="overflow-hidden">
+      <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+        <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+          {icon}
+          {title}
+        </h2>
+        <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-bold text-emerald-700">
+          всего +{total}
+        </span>
+      </div>
+      <div className="divide-y divide-slate-100">
+        {byGroup.map((g) => (
+          <div key={g.groupId ?? "none"}>
+            {showGroupHeaders && (
+              <div className="flex items-center justify-between bg-slate-50 px-5 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
+                <span>{g.groupName ?? "Без группы"}</span>
+                {num(subtotalOf(g.subtotal))}
+              </div>
+            )}
+            {g.programs.map((p) => (
+              <div
+                key={p.programId}
+                className="flex items-center justify-between px-5 py-2.5"
+              >
+                <span className="text-slate-700">{p.program}</span>
+                {num(valueOf(p))}
+              </div>
+            ))}
+          </div>
+        ))}
+      </div>
+    </Card>
+  );
+}
+
 export function Dashboard() {
   const router = useRouter();
   const timezone = useAppStore((s) => s.timezone);
@@ -96,6 +168,12 @@ export function Dashboard() {
     stats && stats.totalApplicants > 0
       ? Math.round((stats.withDocuments / stats.totalApplicants) * 100)
       : 0;
+
+  // Показывать заголовки групп, если есть хотя бы одна реальная группа.
+  const showGroupHeaders = !!(
+    stats &&
+    !(stats.byGroup.length === 1 && stats.byGroup[0].groupId === null)
+  );
 
   return (
     <div className="space-y-6">
@@ -225,7 +303,19 @@ export function Dashboard() {
                   </tr>
                 </thead>
                 <tbody>
-                  {stats.byProgram.map((p) => (
+                  {stats.byGroup.map((g) => (
+                    <Fragment key={g.groupId ?? "none"}>
+                      {showGroupHeaders && (
+                        <tr className="bg-slate-100/70">
+                          <td
+                            colSpan={10}
+                            className="px-5 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
+                          >
+                            {g.groupName ?? "Без группы"}
+                          </td>
+                        </tr>
+                      )}
+                      {g.programs.map((p) => (
                     <tr
                       key={p.program}
                       className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
@@ -276,80 +366,69 @@ export function Dashboard() {
                         {p.withDistant}
                       </td>
                     </tr>
+                      ))}
+                    </Fragment>
                   ))}
                 </tbody>
               </table>
             </div>
           </Card>
 
+          {/* Новые заявления и согласия сегодня — рядом, с группировкой */}
           <div className="grid grid-cols-1 gap-6 lg:grid-cols-2">
-            {/* Новые заявления сегодня по программам */}
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-                <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                  <Sparkles className="size-4 text-emerald-600" />
-                  Новые заявления сегодня
-                </h2>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-bold text-emerald-700">
-                  всего +{stats.newApplications}
-                </span>
-              </div>
-              <div className="divide-y divide-slate-100">
-                {stats.byProgram.map((p) => (
-                  <div
-                    key={p.program}
-                    className="flex items-center justify-between px-5 py-2.5"
-                  >
+            <GroupedCountCard
+              title="Новые заявления сегодня"
+              icon={<Sparkles className="size-4 text-emerald-600" />}
+              total={stats.newApplications}
+              byGroup={stats.byGroup}
+              valueOf={(p) => p.newToday}
+              subtotalOf={(s) => s.newToday}
+            />
+            <GroupedCountCard
+              title="Новые согласия сегодня"
+              icon={<TrendingUp className="size-4 text-emerald-600" />}
+              total={stats.consentGivenToday}
+              byGroup={stats.byGroup}
+              valueOf={(p) => p.consentGivenToday}
+              subtotalOf={(s) => s.consentGivenToday}
+            />
+          </div>
+
+          {/* Согласия / укомплектованность мест */}
+          <Card className="overflow-hidden">
+            <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
+              <h2 className="flex items-center gap-2 font-semibold text-slate-900">
+                <CheckCircle2 className="size-4 text-emerald-600" />
+                Согласия / места
+              </h2>
+              <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-bold text-emerald-700">
+                всего {stats.withConsent}
+              </span>
+            </div>
+            <div className="space-y-3 px-5 py-4">
+              {stats.byProgram.map((p) => (
+                <div key={p.program}>
+                  <div className="mb-1 flex items-center justify-between text-sm">
                     <span className="text-slate-700">{p.program}</span>
-                    <span
-                      className={cn(
-                        "text-sm font-semibold",
-                        p.newToday > 0 ? "text-emerald-700" : "text-slate-400",
-                      )}
-                    >
-                      {p.newToday > 0 ? `+${p.newToday}` : "0"}
+                    <span className="text-slate-500">
+                      <span className="font-semibold text-emerald-700">
+                        {p.withConsent}
+                      </span>{" "}
+                      / {p.places} мест ({p.consentFillPercent}%)
                     </span>
                   </div>
-                ))}
-              </div>
-            </Card>
-
-            {/* Согласия / укомплектованность мест */}
-            <Card className="overflow-hidden">
-              <div className="flex items-center justify-between border-b border-slate-200 px-5 py-3">
-                <h2 className="flex items-center gap-2 font-semibold text-slate-900">
-                  <CheckCircle2 className="size-4 text-emerald-600" />
-                  Согласия / места
-                </h2>
-                <span className="rounded-full bg-emerald-100 px-2.5 py-0.5 text-sm font-bold text-emerald-700">
-                  всего {stats.withConsent}
-                </span>
-              </div>
-              <div className="space-y-3 px-5 py-4">
-                {stats.byProgram.map((p) => (
-                  <div key={p.program}>
-                    <div className="mb-1 flex items-center justify-between text-sm">
-                      <span className="text-slate-700">{p.program}</span>
-                      <span className="text-slate-500">
-                        <span className="font-semibold text-emerald-700">
-                          {p.withConsent}
-                        </span>{" "}
-                        / {p.places} мест ({p.consentFillPercent}%)
-                      </span>
-                    </div>
-                    <div className="h-2 overflow-hidden rounded-full bg-slate-100">
-                      <div
-                        className="h-full rounded-full bg-emerald-500"
-                        style={{
-                          width: `${Math.min(100, p.consentFillPercent)}%`,
-                        }}
-                      />
-                    </div>
+                  <div className="h-2 overflow-hidden rounded-full bg-slate-100">
+                    <div
+                      className="h-full rounded-full bg-emerald-500"
+                      style={{
+                        width: `${Math.min(100, p.consentFillPercent)}%`,
+                      }}
+                    />
                   </div>
-                ))}
-              </div>
-            </Card>
-          </div>
+                </div>
+              ))}
+            </div>
+          </Card>
 
           {/* Сводка по статусам */}
           <div className="grid grid-cols-2 gap-4">

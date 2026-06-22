@@ -195,6 +195,8 @@ export interface ProgramSummary {
   places: number;
   minScores: MinScores;
   applicantCount: number;
+  groupId: number | null;
+  groupName: string | null;
   competition: number | null;
 }
 
@@ -202,6 +204,7 @@ interface ProgramInput {
   name?: string;
   places?: number;
   minScores?: MinScores | null;
+  programGroupId?: number | null;
 }
 
 export const programsApi = {
@@ -218,6 +221,37 @@ export const programsApi = {
     }),
   remove: (id: number) =>
     request<{ success: boolean }>(`/programs/${id}`, { method: "DELETE" }),
+};
+
+// --- Program groups (категории программ) ---
+export interface ProgramGroupRow {
+  id: number;
+  name: string;
+  sortOrder: number;
+  programCount: number;
+}
+
+interface ProgramGroupInput {
+  name?: string;
+  sortOrder?: number;
+}
+
+export const programGroupsApi = {
+  list: () => request<ProgramGroupRow[]>("/program-groups"),
+  create: (data: ProgramGroupInput) =>
+    request<ProgramGroupRow>("/program-groups", {
+      method: "POST",
+      body: JSON.stringify(data),
+    }),
+  update: (id: number, data: ProgramGroupInput) =>
+    request<ProgramGroupRow>(`/program-groups/${id}`, {
+      method: "PUT",
+      body: JSON.stringify(data),
+    }),
+  remove: (id: number) =>
+    request<{ success: boolean }>(`/program-groups/${id}`, {
+      method: "DELETE",
+    }),
 };
 
 // --- Locks ---
@@ -243,6 +277,8 @@ export const locksApi = {
 export interface ProgramStatRow {
   programId: number;
   program: string;
+  groupId: number | null;
+  groupName: string | null;
   places: number;
   applicants: number;
   competition: number | null;
@@ -252,10 +288,30 @@ export interface ProgramStatRow {
   withPaid: number;
   withDistant: number;
   newToday: number;
+  consentGivenToday: number;
+  consentWithdrawnToday: number;
   consentFillPercent: number;
   applied: number;
   withdrawn: number;
   topApplicants: { fullName: string; totalScore: number | null }[];
+}
+
+// Подытог по группе программ (суммы по строкам группы).
+export interface ProgramGroupSubtotal {
+  places: number;
+  applicants: number;
+  withConsent: number;
+  newToday: number;
+  consentGivenToday: number;
+  consentWithdrawnToday: number;
+}
+
+// Группа программ со списком её строк и подытогом. groupId=null → «Без группы».
+export interface ProgramGroupStats {
+  groupId: number | null;
+  groupName: string | null;
+  programs: ProgramStatRow[];
+  subtotal: ProgramGroupSubtotal;
 }
 
 export interface DailyStats {
@@ -276,6 +332,7 @@ export interface DailyStats {
   applicationsPerPlace: number | null;
   consentPerApplication: number;
   byProgram: ProgramStatRow[];
+  byGroup: ProgramGroupStats[];
 }
 
 export const statsApi = {
