@@ -56,7 +56,9 @@ function MetricCard({
       <div
         className={cn(
           "flex size-12 shrink-0 items-center justify-center rounded-lg",
-          accent ? "bg-emerald-600 text-white" : "bg-emerald-100 text-emerald-700",
+          accent
+            ? "bg-emerald-600 text-white"
+            : "bg-emerald-100 text-emerald-700",
         )}
       >
         {icon}
@@ -172,7 +174,7 @@ export function Dashboard() {
   // снова видит дашборд, тихо перезапрашиваем статистику — чтобы подхватить
   // изменения админа (напр. группы программ). Защита: не чаще раза в 15 с.
   useEffect(() => {
-    const REFRESH_GUARD_MS = 15_000;
+    const REFRESH_GUARD_MS = 45_000;
     const refreshIfStale = () => {
       if (document.visibilityState !== "visible") return;
       if (Date.now() - lastLoadAt.current < REFRESH_GUARD_MS) return;
@@ -193,8 +195,7 @@ export function Dashboard() {
 
   // Показывать заголовки групп, если есть хотя бы одна реальная группа.
   const showGroupHeaders = !!(
-    stats &&
-    !(stats.byGroup.length === 1 && stats.byGroup[0].groupId === null)
+    stats && !(stats.byGroup.length === 1 && stats.byGroup[0].groupId === null)
   );
 
   return (
@@ -210,7 +211,12 @@ export function Dashboard() {
             <FileDown className="size-4" />
             Отчёт PDF
           </Button>
-          <Button variant="secondary" size="sm" onClick={load} disabled={loading}>
+          <Button
+            variant="secondary"
+            size="sm"
+            onClick={load}
+            disabled={loading}
+          >
             {loading ? (
               <Loader2 className="size-4 animate-spin" />
             ) : (
@@ -254,26 +260,6 @@ export function Dashboard() {
               hint={`из ${stats.applied} подавших`}
             />
             <MetricCard
-              icon={<FileCheck2 className="size-6" />}
-              label="Документы собраны"
-              value={`${docPercent}%`}
-              hint={`${stats.withDocuments} из ${stats.totalApplicants}`}
-            />
-          </div>
-
-          {/* Вторая строка метрик: согласия за день, платные, ratio */}
-          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
-            <MetricCard
-              icon={<TrendingUp className="size-6" />}
-              label="Новые согласия сегодня"
-              value={stats.consentGivenToday}
-            />
-            <MetricCard
-              icon={<TrendingDown className="size-6" />}
-              label="Забрали согласие сегодня"
-              value={stats.consentWithdrawnToday}
-            />
-            <MetricCard
               icon={<Wallet className="size-6" />}
               label="Платные абитуриенты"
               value={stats.withPaid}
@@ -282,6 +268,26 @@ export function Dashboard() {
                   ? `${Math.round((stats.withPaid / stats.totalApplicants) * 100)}% от всех`
                   : undefined
               }
+            />
+          </div>
+
+          {/* Вторая строка метрик: согласия за день, платные, ratio */}
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-4">
+            <MetricCard
+              icon={<FileCheck2 className="size-6" />}
+              label="Документы собраны"
+              value={`${docPercent}%`}
+              hint={`${stats.withDocuments} из ${stats.totalApplicants}`}
+            />
+            <MetricCard
+              icon={<TrendingUp className="size-6" />}
+              label="Новых согласий сегодня"
+              value={stats.consentGivenToday}
+            />
+            <MetricCard
+              icon={<TrendingDown className="size-6" />}
+              label="Забрали согласие сегодня"
+              value={stats.consentWithdrawnToday}
             />
             <MetricCard
               icon={<Laptop className="size-6" />}
@@ -293,6 +299,7 @@ export function Dashboard() {
                   : undefined
               }
             />
+            {/* Третья строка метрик: заявлений на место */}
             <MetricCard
               icon={<Scale className="size-6" />}
               label="Заявлений на место"
@@ -314,14 +321,30 @@ export function Dashboard() {
                   <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
                     <th className="px-5 py-2.5 font-medium">Программа</th>
                     <th className="px-5 py-2.5 text-right font-medium">Мест</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Абитур.</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Новые сегодня</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Конкурс</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Ср. балл</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Согласия</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Документы</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Платные</th>
-                    <th className="px-5 py-2.5 text-right font-medium">Дистант</th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Абитур.
+                    </th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Новые сегодня
+                    </th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Конкурс
+                    </th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Ср. балл
+                    </th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Согласия
+                    </th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Документы
+                    </th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Платные
+                    </th>
+                    <th className="px-5 py-2.5 text-right font-medium">
+                      Дистант
+                    </th>
                   </tr>
                 </thead>
                 <tbody>
@@ -338,56 +361,56 @@ export function Dashboard() {
                         </tr>
                       )}
                       {g.programs.map((p) => (
-                    <tr
-                      key={p.program}
-                      className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
-                    >
-                      <td className="px-5 py-2.5 font-medium text-slate-900">
-                        {p.program}
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-slate-600">
-                        {p.places}
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-slate-600">
-                        {p.applicants}
-                      </td>
-                      <td className="px-5 py-2.5 text-right">
-                        {p.newToday > 0 ? (
-                          <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
-                            +{p.newToday}
-                          </span>
-                        ) : (
-                          <span className="text-slate-400">0</span>
-                        )}
-                      </td>
-                      <td className="px-5 py-2.5 text-right">
-                        <span
-                          className={cn(
-                            "font-medium",
-                            p.competition && p.competition >= 1
-                              ? "text-emerald-700"
-                              : "text-slate-500",
-                          )}
+                        <tr
+                          key={p.program}
+                          className="border-b border-slate-100 last:border-0 hover:bg-emerald-50/40"
                         >
-                          {p.competition?.toFixed(2) ?? "—"}
-                        </span>
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-slate-600">
-                        {p.avgScore?.toFixed(1) ?? "—"}
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-slate-600">
-                        {p.withConsent}
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-slate-600">
-                        {p.withDocuments}
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-slate-600">
-                        {p.withPaid}
-                      </td>
-                      <td className="px-5 py-2.5 text-right text-slate-600">
-                        {p.withDistant}
-                      </td>
-                    </tr>
+                          <td className="px-5 py-2.5 font-medium text-slate-900">
+                            {p.program}
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-slate-600">
+                            {p.places}
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-slate-600">
+                            {p.applicants}
+                          </td>
+                          <td className="px-5 py-2.5 text-right">
+                            {p.newToday > 0 ? (
+                              <span className="inline-flex items-center rounded-full bg-emerald-100 px-2 py-0.5 text-xs font-bold text-emerald-700">
+                                +{p.newToday}
+                              </span>
+                            ) : (
+                              <span className="text-slate-400">0</span>
+                            )}
+                          </td>
+                          <td className="px-5 py-2.5 text-right">
+                            <span
+                              className={cn(
+                                "font-medium",
+                                p.competition && p.competition >= 1
+                                  ? "text-emerald-700"
+                                  : "text-slate-500",
+                              )}
+                            >
+                              {p.competition?.toFixed(2) ?? "—"}
+                            </span>
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-slate-600">
+                            {p.avgScore?.toFixed(1) ?? "—"}
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-slate-600">
+                            {p.withConsent}
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-slate-600">
+                            {p.withDocuments}
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-slate-600">
+                            {p.withPaid}
+                          </td>
+                          <td className="px-5 py-2.5 text-right text-slate-600">
+                            {p.withDistant}
+                          </td>
+                        </tr>
                       ))}
                     </Fragment>
                   ))}
