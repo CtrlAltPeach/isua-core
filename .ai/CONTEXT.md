@@ -3,14 +3,16 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 15 завершена — версия 0.15.0, ветка dev)
+## Текущее состояние (итерация 15 + патчи — версия 0.15.3, ветка dev)
 > Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
 > Preview-деплой использует dev-БД (см. `ops/DATABASE_ENVIRONMENTS.md`).
+> Патчи поверх 0.15.0: 0.15.1 (UX дашборда), 0.15.2 («сегодня» по локальной дате
+> таймзоны), 0.15.3 (событие «Создание записи» с автором в истории абитуриента).
 
 ### Технологии (фактические)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
 - Язык: TypeScript 5
-- БД: PostgreSQL 17 portable (:5432, ICU locale ru-RU) + Prisma 6.19 ORM
+- БД: PostgreSQL 18 (локально — системный сервис :5432; БД должна быть с ICU-локалью ru-RU) + Prisma 6.19 ORM
 - Frontend: React 19, Tailwind CSS 4, Lucide icons
   - ВНИМАНИЕ: shadcn/ui, TanStack Table, Recharts **НЕ** используются.
     UI — собственные лёгкие компоненты в `src/components/ui.tsx`,
@@ -113,7 +115,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-79 тестов (vitest: unit + интеграционные API)
+84 теста (vitest: unit + интеграционные API)
 0 ESLint ошибок
 
 ---
@@ -133,9 +135,10 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 ---
 
 ## Локальная разработка
-PostgreSQL 17 portable на :5432
-Запуск: `pg_ctl -D path/to/data -l logfile start`
-`DATABASE_URL=postgresql://user:pass@localhost:5432/isua`
+PostgreSQL 18 (системный сервис `postgresql-x64-18`) на :5432.
+`DATABASE_URL=postgresql://postgres:<пароль>@127.0.0.1:5432/isua` (пароль роли задан
+при установке PG18). Раньше был portable PG17 (`%LOCALAPPDATA%\isua-pg`) — удалён.
+Запуск node/npm в этом окружении: `node` в `C:\Program Files\nodejs` (не в PATH).
 
 Next.js 16 dev:
 `npm run dev` → http://localhost:3000
