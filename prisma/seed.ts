@@ -142,20 +142,33 @@ async function seedApplicants(createdByUserId: number) {
       : `${last} ${rnd(FIRST_M)} ${rnd(MID_M)}`;
 
     const status = rnd(STATUSES);
+    // Часть абитуриентов поступает по ВИ (вступительные испытания вуза), без ЕГЭ.
+    const takesVi = Math.random() < 0.15;
     // Математика: ЛИБО база, ЛИБО профиль (взаимоисключающи).
-    const takesBase = Math.random() < 0.4;
+    const takesBase = !takesVi && Math.random() < 0.4;
     const mathBase = takesBase ? 2 + Math.floor(Math.random() * 4) : null; // 2..5
-    const scores = {
-      mathProfile: takesBase ? null : maybe(rndScore(), 0.9),
-      russian: maybe(rndScore(), 0.95),
-      chemistry: maybe(rndScore(), 0.4),
-      physics: maybe(rndScore(), 0.5),
-      informatics: maybe(rndScore(), 0.5),
-      geography: maybe(rndScore(), 0.2),
-    };
+    const scores = takesVi
+      ? {
+          mathProfile: null,
+          russian: null,
+          chemistry: null,
+          physics: null,
+          informatics: null,
+          geography: null,
+        }
+      : {
+          mathProfile: takesBase ? null : maybe(rndScore(), 0.9),
+          russian: maybe(rndScore(), 0.95),
+          chemistry: maybe(rndScore(), 0.4),
+          physics: maybe(rndScore(), 0.5),
+          informatics: maybe(rndScore(), 0.5),
+          geography: maybe(rndScore(), 0.2),
+        };
+    // ВИ — целое 120..290 (заменяет сумму ЕГЭ). Доп. баллы — индивидуальные достижения 0..10.
+    const viScore = takesVi ? 120 + Math.floor(Math.random() * 171) : null;
     const additionalScores = Math.random() < 0.3 ? 1 + Math.floor(Math.random() * 10) : 0;
-    // Балл: сумма топ-3 предметов + доп. баллы (mathBase не входит).
-    const totalScore = calculateTotalScore(scores, additionalScores);
+    // Балл: (ВИ ?? сумма топ-3 предметов ЕГЭ) + доп. баллы (mathBase не входит).
+    const totalScore = calculateTotalScore(scores, additionalScores, viScore);
 
     // Согласие — у части подавших; забравшие — всегда false.
     const consent = status === "applied" && Math.random() < 0.5;
@@ -189,6 +202,7 @@ async function seedApplicants(createdByUserId: number) {
         mathBase: mathBase ?? undefined,
         ...scores,
         additionalScores,
+        viScore: viScore ?? undefined,
         totalScore,
         notes: rnd(NOTES) ?? undefined,
         createdByUserId,

@@ -122,11 +122,16 @@ const applicantBase = {
   physics: scoreField,
   informatics: scoreField,
   geography: scoreField,
-  // Доп. баллы / ВИ: целое 0..100 (M5 — верхняя граница против опечатки/
-  // злоупотребления). Может поднять итог >300. Пусто/null → 0.
+  // Доп. баллы (индивидуальные достижения): целое 0..10. Пусто/null → 0.
   additionalScores: z.preprocess(
     (v) => (v === "" || v === null || v === undefined ? 0 : v),
-    z.coerce.number().int().min(0).max(100, "Доп. баллы не более 100"),
+    z.coerce.number().int().min(0).max(10, "Доп. баллы не более 10"),
+  ),
+  // ВИ — вступительные испытания вуза (для поступающих без ЕГЭ): целое 0..300
+  // либо null (= сдаёт по ЕГЭ). Если задано — заменяет сумму ЕГЭ в итоговом балле.
+  viScore: z.preprocess(
+    emptyToNull,
+    z.coerce.number().int("Балл — целое число").min(0).max(300, "ВИ не более 300").nullable(),
   ),
   registrationAddress: optionalString,
   inn: optionalString,

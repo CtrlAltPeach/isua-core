@@ -65,4 +65,36 @@ describe("calculateTotalScore", () => {
       calculateTotalScore({ russian: 33, physics: 33, informatics: 34 }),
     ).toBe(100);
   });
+
+  describe("ВИ (вступительные испытания)", () => {
+    it("ВИ заменяет сумму ЕГЭ: total = ВИ + доп. баллы", () => {
+      // Предметы ЕГЭ заданы, но игнорируются — берётся ВИ.
+      expect(
+        calculateTotalScore(
+          { russian: 90, physics: 80, informatics: 70 },
+          5,
+          250,
+        ),
+      ).toBe(255); // 250 + 5, сумма ЕГЭ (240) не учитывается
+    });
+
+    it("ВИ работает без предметов ЕГЭ (поступление без ЕГЭ)", () => {
+      expect(calculateTotalScore({}, 0, 180)).toBe(180);
+      expect(calculateTotalScore({ russian: 50 }, 0, 200)).toBe(200);
+    });
+
+    it("ВИ = 0 — валидный балл (не путать с null)", () => {
+      expect(calculateTotalScore({}, 3, 0)).toBe(3);
+    });
+
+    it("ВИ null/undefined — расчёт по ЕГЭ (старое поведение)", () => {
+      const base = { russian: 80, physics: 70, informatics: 60 };
+      expect(calculateTotalScore(base, 0, null)).toBe(210);
+      expect(calculateTotalScore(base, 0, undefined)).toBe(210);
+    });
+
+    it("ВИ + доп. баллы может превышать 300", () => {
+      expect(calculateTotalScore({}, 10, 300)).toBe(310);
+    });
+  });
 });

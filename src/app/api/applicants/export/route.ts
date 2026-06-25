@@ -55,6 +55,8 @@ export async function GET(req: NextRequest) {
     { header: "Программа", key: "program", width: 14 },
     { header: "Статус", key: "status", width: 18 },
     { header: "Балл", key: "totalScore", width: 8 },
+    { header: "ВИ", key: "viScore", width: 7 },
+    { header: "Доп. баллы", key: "additionalScores", width: 11 },
     { header: "Согласие", key: "consent", width: 10 },
     { header: "Документы", key: "docs", width: 11 },
     { header: "Особая квота", key: "specialQuota", width: 13 },
@@ -84,6 +86,8 @@ export async function GET(req: NextRequest) {
       program: a.program?.name ?? "",
       status: STATUS_FULL_LABEL[a.status as ApplicantStatus] ?? a.status,
       totalScore: a.totalScore ?? "",
+      viScore: a.viScore ?? "",
+      additionalScores: a.additionalScores,
       consent: yesNo(a.consentToEnroll),
       docs: yesNo(a.documentsComplete),
       specialQuota: yesNo(a.specialQuota),
@@ -128,8 +132,8 @@ export async function GET(req: NextRequest) {
   // Диапазоны колонок листа данных (1-based индексы → буквы).
   const colStatus = "D"; // Статус
   const colScore = "E"; // Балл
-  const colConsent = "F"; // Согласие (Да/Нет)
-  const colDocs = "G"; // Документы
+  const colConsent = "H"; // Согласие (Да/Нет) — сдвинуто после столбцов ВИ/Доп. баллы
+  const colDocs = "I"; // Документы
 
   const addStat = (label: string, formula: string) => {
     const r = st.addRow({ k: label });

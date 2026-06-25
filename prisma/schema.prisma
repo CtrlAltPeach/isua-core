@@ -105,8 +105,11 @@ model Applicant {
   physics     Int?
   informatics Int?
   geography   Int?
-  additionalScores Int @default(0) // доп. баллы / ВИ (могут поднять total выше 300)
-  totalScore  Int? // авто: сумма топ-3 предметов (без mathBase) + additionalScores
+  additionalScores Int @default(0) // доп. баллы (индивидуальные достижения, 0-10)
+  // ВИ — вступительные испытания вуза (для поступающих без ЕГЭ). Если задано —
+  // ЗАМЕНЯЕТ сумму предметов ЕГЭ в total (0-300). null = абитуриент сдаёт по ЕГЭ.
+  viScore     Int?
+  totalScore  Int? // авто: (ВИ ?? сумма топ-3 предметов ЕГЭ без mathBase) + additionalScores
 
   // Персональные данные
   registrationAddress String?

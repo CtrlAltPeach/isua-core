@@ -44,6 +44,7 @@ interface FormValues {
   informatics: string;
   geography: string;
   additionalScores: string;
+  viScore: string;
   // персональное
   registrationAddress: string;
   inn: string;
@@ -93,6 +94,7 @@ function defaultsFrom(a: ApplicantWithProgram | null): FormValues {
     informatics: toStr(a?.informatics),
     geography: toStr(a?.geography),
     additionalScores: a?.additionalScores ? String(a.additionalScores) : "",
+    viScore: toStr(a?.viScore),
     registrationAddress: a?.registrationAddress ?? "",
     inn: a?.inn ?? "",
     snils: a?.snils ?? "",
@@ -176,7 +178,10 @@ export function ApplicantFormModal({
   const mathBaseFilled = watched.mathBase.trim() !== "";
   const mathProfileFilled = watched.mathProfile.trim() !== "";
 
-  // Live total_score = топ-3 предметов + доп. баллы (база не входит).
+  // Если задано ВИ — итог считается по ВИ (предметы ЕГЭ не учитываются).
+  const viFilled = watched.viScore.trim() !== "";
+
+  // Live total_score = (ВИ ?? топ-3 предметов) + доп. баллы (база не входит).
   const liveTotal = useMemo(
     () =>
       calculateTotalScore(
@@ -189,6 +194,7 @@ export function ApplicantFormModal({
           geography: numOrNull(watched.geography),
         },
         numOrNull(watched.additionalScores) ?? 0,
+        numOrNull(watched.viScore),
       ),
     [
       watched.mathProfile,
@@ -198,6 +204,7 @@ export function ApplicantFormModal({
       watched.informatics,
       watched.geography,
       watched.additionalScores,
+      watched.viScore,
     ],
   );
 
@@ -281,6 +288,7 @@ export function ApplicantFormModal({
       informatics: numOrNull(v.informatics),
       geography: numOrNull(v.geography),
       additionalScores: numOrNull(v.additionalScores) ?? 0,
+      viScore: numOrNull(v.viScore),
       registrationAddress: v.registrationAddress.trim() || null,
       inn: v.inn.trim() || null,
       snils: v.snils.trim() || null,
@@ -488,15 +496,29 @@ export function ApplicantFormModal({
               {scoreInput("mathProfile", "Математика (профиль)", mathBaseFilled)}
               {SCORE_LABELS.map((s) => scoreInput(s.name, s.label))}
               <div>
-                <Label htmlFor="additionalScores">Доп. баллы / ВИ</Label>
+                <Label htmlFor="additionalScores">Доп. баллы</Label>
                 <Input
                   id="additionalScores"
                   type="number"
                   min={0}
+                  max={10}
                   step="1"
-                  placeholder="0"
+                  placeholder="0–10"
                   onWheel={noWheel}
                   {...register("additionalScores")}
+                />
+              </div>
+              <div>
+                <Label htmlFor="viScore">ВИ (вступит. испытания)</Label>
+                <Input
+                  id="viScore"
+                  type="number"
+                  min={0}
+                  max={300}
+                  step="1"
+                  placeholder="0–300"
+                  onWheel={noWheel}
+                  {...register("viScore")}
                 />
               </div>
             </div>
@@ -519,7 +541,9 @@ export function ApplicantFormModal({
                 {liveTotal != null ? liveTotal : "—"}
               </span>
               <span className="ml-2 text-xs text-slate-400">
-                сумма 3 лучших предметов + доп. баллы (база математики не входит)
+                {viFilled
+                  ? "ВИ + доп. баллы (предметы ЕГЭ не учитываются)"
+                  : "сумма 3 лучших предметов + доп. баллы (база математики не входит)"}
                 {liveTotal != null && liveTotal > 300 && " · переполнение >300"}
               </span>
             </div>

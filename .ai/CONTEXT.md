@@ -3,13 +3,13 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 16 — версия 0.16.0, ветка dev)
+## Текущее состояние (итерация 17 — версия 0.17.0, ветка dev)
 > Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
 > Preview-деплой использует dev-БД (см. `ops/DATABASE_ENVIRONMENTS.md`).
-> Патчи поверх 0.15.0: 0.15.1 (UX дашборда), 0.15.2 («сегодня» по локальной дате
-> таймзоны), 0.15.3 (событие «Создание записи» с автором в истории абитуриента).
 > Итерация 16 (M3): ротация ключа шифрования — keyring `ENCRYPTION_KEY` +
-> `ENCRYPTION_KEY_OLD` (trial-decrypt), скрипт `npm run crypto:rotate`. Тесты 89.
+> `ENCRYPTION_KEY_OLD` (trial-decrypt), скрипт `npm run crypto:rotate`.
+> Итерация 17: разделение «Доп. баллы / ВИ» — новое поле `viScore` (ВИ, 0–300,
+> ЗАМЕНЯЕТ сумму ЕГЭ в total), доп. баллы capped 0–10. Миграция `add_vi_score`. Тесты 94.
 
 ### Технологии (фактические)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
@@ -40,7 +40,7 @@
 - **Program:** id, name (uniq), places (количество бюджетных мест), minScores (Json?), programGroupId (FK→ProgramGroup, onDelete SetNull), createdAt
 - **Applicant:**
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
-  - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100), additionalScores, totalScore (auto: сумма топ-3 предметов + доп.баллы, без mathBase)
+  - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100); additionalScores (доп. баллы 0-10); viScore? (ВИ — вступит. испытания вуза 0-300, если задано — ЗАМЕНЯЕТ сумму ЕГЭ); totalScore (auto: (viScore ?? сумма топ-3 предметов без mathBase) + доп.баллы)
   - Согласия: consentToEnroll (bool), documentsComplete (bool); флаги: specialQuota, specialRight, isPaid, isDistant (дистант)
   - Документы: documentType (diploma|certificate), citizenship, passportSeries, passportNumber
   - Персональные: registrationAddress?, inn?, snils?, notes?
@@ -118,7 +118,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-84 теста (vitest: unit + интеграционные API)
+94 теста (vitest: unit + интеграционные API)
 0 ESLint ошибок
 
 ---

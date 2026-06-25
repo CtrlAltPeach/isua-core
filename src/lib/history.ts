@@ -28,6 +28,7 @@ export const LOGGED_FIELDS = [
   "informatics",
   "geography",
   "additionalScores",
+  "viScore",
   "registrationAddress",
   "inn",
   "snils",

@@ -171,6 +171,12 @@ function ApplicantDetails({ a }: { a: ApplicantWithProgram }) {
       <Detail label="ИНН" value={a.inn} />
       <Detail label="Прописка" value={a.registrationAddress} />
       <Detail label="Email" value={a.email} />
+      {a.viScore != null && (
+        <Detail label="ВИ (вступит. испытания)" value={String(a.viScore)} />
+      )}
+      {a.additionalScores > 0 && (
+        <Detail label="Доп. баллы" value={String(a.additionalScores)} />
+      )}
       {a.notes && (
         <div className="col-span-2 sm:col-span-4">
           <dt className="text-xs font-medium text-slate-400">Заметка</dt>
@@ -413,6 +419,14 @@ export function ApplicantTable({
                 <AlertTriangle className="size-3.5 text-amber-500" />
               </span>
             )}
+            {a.viScore != null && (
+              <span
+                title="Балл по вступительным испытаниям (ВИ), не по ЕГЭ"
+                className="rounded bg-sky-100 px-1 text-[10px] font-bold text-sky-700"
+              >
+                ВИ
+              </span>
+            )}
             {a.totalScore != null ? a.totalScore : "—"}
           </span>
         </td>
@@ -490,6 +504,14 @@ export function ApplicantTable({
           <div className="flex shrink-0 items-center gap-1 text-right font-semibold text-slate-900">
             {failing.length > 0 && (
               <AlertTriangle className="size-3.5 text-amber-500" />
+            )}
+            {a.viScore != null && (
+              <span
+                title="Балл по вступительным испытаниям (ВИ), не по ЕГЭ"
+                className="rounded bg-sky-100 px-1 text-[10px] font-bold text-sky-700"
+              >
+                ВИ
+              </span>
             )}
             {a.totalScore != null ? a.totalScore : "—"}
             <span className="text-xs font-normal text-slate-400">б</span>
