@@ -11,7 +11,7 @@ import { ApiError } from "@/lib/api";
 import type { ApplicantWithProgram, ApplicantStatus } from "@/lib/types";
 import { calculateTotalScore } from "@/lib/scoring";
 import { failingSubjects, SUBJECT_LABELS } from "@/lib/thresholds";
-import { STATUS_OPTIONS } from "@/lib/applicant-ui";
+import { STATUS_OPTIONS, birthDateInputValue } from "@/lib/applicant-ui";
 import { useLock } from "@/hooks/useLock";
 import { toast } from "@/lib/toast";
 import { Modal, Button, Input, Label, Select } from "@/components/ui";
@@ -31,6 +31,7 @@ interface FormValues {
   specialRight: boolean;
   isPaid: boolean;
   isDistant: boolean;
+  birthDate: string; // "" | YYYY-MM-DD
   documentType: string; // "" | diploma | certificate
   passportSeries: string;
   passportNumber: string;
@@ -82,6 +83,7 @@ function defaultsFrom(a: ApplicantWithProgram | null): FormValues {
     specialRight: a?.specialRight ?? false,
     isPaid: a?.isPaid ?? false,
     isDistant: a?.isDistant ?? false,
+    birthDate: birthDateInputValue(a?.birthDate),
     documentType: a?.documentType ?? "",
     passportSeries: a?.passportSeries ?? "",
     passportNumber: a?.passportNumber ?? "",
@@ -276,6 +278,7 @@ export function ApplicantFormModal({
       specialRight: v.specialRight,
       isPaid: v.isPaid,
       isDistant: v.isDistant,
+      birthDate: v.birthDate || null,
       documentType: v.documentType || null,
       passportSeries: v.passportSeries.trim() || null,
       passportNumber: v.passportNumber.trim() || null,
@@ -580,6 +583,15 @@ export function ApplicantFormModal({
         <Section title="Персональное">
           <div className="space-y-4">
             <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+              <div>
+                <Label htmlFor="birthDate">Дата рождения</Label>
+                <Input
+                  id="birthDate"
+                  type="date"
+                  max={new Date().toISOString().slice(0, 10)}
+                  {...register("birthDate")}
+                />
+              </div>
               <div className="sm:col-span-3">
                 <Label htmlFor="registrationAddress">Прописка</Label>
                 <Input

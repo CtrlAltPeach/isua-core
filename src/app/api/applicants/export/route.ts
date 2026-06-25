@@ -9,7 +9,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { unauthorized } from "@/lib/http";
 import { decryptPiiList } from "@/lib/applicant-pii";
-import { STATUS_FULL_LABEL } from "@/lib/applicant-ui";
+import { STATUS_FULL_LABEL, formatBirthDate } from "@/lib/applicant-ui";
 import type { ApplicantStatus } from "@/lib/types";
 
 function docTypeLabel(t: string | null): string {
@@ -67,6 +67,9 @@ export async function GET(req: NextRequest) {
     { header: "Email", key: "email", width: 22 },
     { header: "Гражданство", key: "citizenship", width: 14 },
     { header: "Документ", key: "docType", width: 11 },
+    // Дата рождения добавлена ПОСЛЕ ссылочных колонок (C/D/E/H/I) листа данных,
+    // чтобы не сдвигать буквы в формулах листа «Статистика».
+    { header: "Дата рождения", key: "birthDate", width: 14 },
   ];
   if (isAdmin) {
     columns.push(
@@ -98,6 +101,7 @@ export async function GET(req: NextRequest) {
       email: a.email ?? "",
       citizenship: a.citizenship ?? "",
       docType: docTypeLabel(a.documentType),
+      birthDate: a.birthDate ? formatBirthDate(a.birthDate) : "",
     };
     if (isAdmin) {
       row.passportSeries = a.passportSeries ?? "";

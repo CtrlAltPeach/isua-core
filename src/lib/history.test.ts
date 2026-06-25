@@ -63,6 +63,31 @@ describe("buildHistoryEntries", () => {
     expect(entries[0].newValue).toBe("999");
   });
 
+  it("birthDate (Date) логируется как YYYY-MM-DD", () => {
+    const entries = buildHistoryEntries(
+      1,
+      10,
+      { birthDate: new Date("2000-01-15T00:00:00.000Z") },
+      { birthDate: new Date("2001-02-20T00:00:00.000Z") },
+    );
+    expect(entries).toHaveLength(1);
+    expect(entries[0]).toMatchObject({
+      fieldName: "birthDate",
+      oldValue: "2000-01-15",
+      newValue: "2001-02-20",
+    });
+  });
+
+  it("birthDate без изменения даты не логируется", () => {
+    const entries = buildHistoryEntries(
+      1,
+      10,
+      { birthDate: new Date("2000-01-15T00:00:00.000Z") },
+      { birthDate: new Date("2000-01-15T00:00:00.000Z") },
+    );
+    expect(entries).toHaveLength(0);
+  });
+
   it("не логирует нелогируемые служебные поля (version/totalScore)", () => {
     const entries = buildHistoryEntries(
       1,

@@ -91,6 +91,9 @@ model Applicant {
   isPaid            Boolean @default(false) // платное обучение
   isDistant         Boolean @default(false) // дистанционное обучение
 
+  // Дата рождения (только дата, без времени; хранится как DATE).
+  birthDate DateTime? @db.Date
+
   // Документ об образовании и гражданство
   documentType DocumentType? // диплом | аттестат
   citizenship  String? // гражданство (Россия, Беларусь, …)

@@ -3,13 +3,14 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 17 — версия 0.17.0, ветка dev)
+## Текущее состояние (итерация 18 — версия 0.18.0, ветка dev)
 > Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
 > Preview-деплой использует dev-БД (см. `ops/DATABASE_ENVIRONMENTS.md`).
-> Итерация 16 (M3): ротация ключа шифрования — keyring `ENCRYPTION_KEY` +
-> `ENCRYPTION_KEY_OLD` (trial-decrypt), скрипт `npm run crypto:rotate`.
 > Итерация 17: разделение «Доп. баллы / ВИ» — новое поле `viScore` (ВИ, 0–300,
-> ЗАМЕНЯЕТ сумму ЕГЭ в total), доп. баллы capped 0–10. Миграция `add_vi_score`. Тесты 94.
+> ЗАМЕНЯЕТ сумму ЕГЭ в total), доп. баллы capped 0–10. Миграция `add_vi_score`.
+> Итерация 18: дата рождения абитуриента (`birthDate DateTime? @db.Date`, миграция
+> `add_birth_date`) + подытоги/итог по группам в таблице «Конкурс по программам»
+> на дашборде. Тесты 101.
 
 ### Технологии (фактические)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
@@ -42,6 +43,7 @@
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
   - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100); additionalScores (доп. баллы 0-10); viScore? (ВИ — вступит. испытания вуза 0-300, если задано — ЗАМЕНЯЕТ сумму ЕГЭ); totalScore (auto: (viScore ?? сумма топ-3 предметов без mathBase) + доп.баллы)
   - Согласия: consentToEnroll (bool), documentsComplete (bool); флаги: specialQuota, specialRight, isPaid, isDistant (дистант)
+  - Дата рождения: birthDate? (DATE, без времени; не шифруется)
   - Документы: documentType (diploma|certificate), citizenship, passportSeries, passportNumber
   - Персональные: registrationAddress?, inn?, snils?, notes?
   - ⚠️ passportSeries/passportNumber/inn/snils хранятся ЗАШИФРОВАННЫМИ (AES-256-GCM, enc:v1:…)
@@ -96,7 +98,7 @@ GET  /api/programs            POST /api/programs   (отдаёт groupId/groupNa
 PUT  /api/programs/[id]       DELETE /api/programs/[id]
 GET  /api/program-groups      POST /api/program-groups            (admin)
 PUT  /api/program-groups/[id] DELETE /api/program-groups/[id]     (admin, SetNull)
-GET  /api/stats/daily         (byProgram + byGroup с подытогами; согласия сегодня в разрезе программы)
+GET  /api/stats/daily         (byProgram + byGroup с подытогами places/абит/согл/док/платн/дистант/конкурс; согласия сегодня в разрезе программы)
 GET  /api/users               PATCH /api/users/[id] (role)   DELETE /api/users/[id]
 GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 ```
@@ -118,7 +120,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-94 теста (vitest: unit + интеграционные API)
+101 тест (vitest: unit + интеграционные API)
 0 ESLint ошибок
 
 ---

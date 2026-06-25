@@ -4,6 +4,7 @@ import {
   registerSchema,
   loginSchema,
   updateProgramSchema,
+  createApplicantSchema,
 } from "./validation";
 
 describe("email нормализация (регистронезависимый)", () => {
@@ -52,5 +53,51 @@ describe("programGroupId в схеме программы (итер. 15)", () =>
 
   it("отсутствие ключа → undefined (роут трактует как «не менять группу»)", () => {
     expect(updateProgramSchema.parse({}).programGroupId).toBeUndefined();
+  });
+});
+
+describe("birthDate в схеме абитуриента (итер. 18)", () => {
+  const parse = (birthDate: unknown) =>
+    createApplicantSchema.parse({ fullName: "Иванов", programId: 1, birthDate })
+      .birthDate;
+
+  it("валидная дата парсится в Date (UTC-полночь)", () => {
+    const d = parse("2000-01-15");
+    expect(d).toBeInstanceOf(Date);
+    expect((d as Date).toISOString().slice(0, 10)).toBe("2000-01-15");
+  });
+
+  it("пусто/null → null", () => {
+    expect(parse("")).toBeNull();
+    expect(parse(null)).toBeNull();
+  });
+
+  it("отсутствие ключа → null", () => {
+    expect(
+      createApplicantSchema.parse({ fullName: "Иванов", programId: 1 })
+        .birthDate,
+    ).toBeNull();
+  });
+
+  it("дата в будущем отклоняется", () => {
+    const future = new Date(Date.now() + 86_400_000).toISOString().slice(0, 10);
+    expect(
+      createApplicantSchema.safeParse({
+        fullName: "Иванов",
+        programId: 1,
+        birthDate: future,
+      }).success,
+    ).toBe(false);
+  });
+
+  it("год < 1900 и мусор отклоняются", () => {
+    const bad = (birthDate: unknown) =>
+      createApplicantSchema.safeParse({
+        fullName: "Иванов",
+        programId: 1,
+        birthDate,
+      }).success;
+    expect(bad("1899-12-31")).toBe(false);
+    expect(bad("не-дата")).toBe(false);
   });
 });

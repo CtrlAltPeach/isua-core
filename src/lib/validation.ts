@@ -89,6 +89,19 @@ const optionalString = z
   .optional()
   .transform((v) => (v === undefined ? null : v));
 
+// Дата рождения: пусто/null → null; иначе валидная дата (год 1900..сегодня).
+// HTML-инпут type="date" отдаёт "YYYY-MM-DD"; coerce.date парсит как UTC-полночь.
+const birthDateField = z.preprocess(
+  emptyToNull,
+  z.coerce
+    .date()
+    .refine(
+      (d) => d.getUTCFullYear() >= 1900 && d.getTime() <= Date.now(),
+      "Некорректная дата рождения",
+    )
+    .nullable(),
+);
+
 // Поля, общие для создания и обновления.
 const applicantBase = {
   fullName: z.string().min(1, "ФИО обязательно").max(200),
@@ -105,6 +118,7 @@ const applicantBase = {
   specialRight: z.coerce.boolean().optional(),
   isPaid: z.coerce.boolean().optional(),
   isDistant: z.coerce.boolean().optional(),
+  birthDate: birthDateField,
   documentType: z
     .union([z.enum(["diploma", "certificate"]), z.literal(""), z.null()])
     .optional()

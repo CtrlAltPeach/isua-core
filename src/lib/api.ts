@@ -301,9 +301,14 @@ export interface ProgramGroupSubtotal {
   places: number;
   applicants: number;
   withConsent: number;
+  withDocuments: number;
+  withPaid: number;
+  withDistant: number;
   newToday: number;
   consentGivenToday: number;
   consentWithdrawnToday: number;
+  // Конкурс по группе (суммарно абитуриентов / суммарно мест).
+  competition: number | null;
 }
 
 // Группа программ со списком её строк и подытогом. groupId=null → «Без группы».

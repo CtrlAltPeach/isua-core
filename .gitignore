@@ -52,3 +52,6 @@ dev-server.log
 !prisma/migrations/**/*.sql
 /backups/
 /scripts/
+
+# ai
+.claude

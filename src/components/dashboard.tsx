@@ -351,12 +351,34 @@ export function Dashboard() {
                   {stats.byGroup.map((g) => (
                     <Fragment key={g.groupId ?? "none"}>
                       {showGroupHeaders && (
-                        <tr className="bg-slate-100/70">
-                          <td
-                            colSpan={10}
-                            className="px-5 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500"
-                          >
+                        <tr className="bg-slate-100/70 text-slate-600">
+                          <td className="px-5 py-1.5 text-xs font-semibold uppercase tracking-wide text-slate-500">
                             {g.groupName ?? "Без группы"}
+                          </td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.places}
+                          </td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.applicants}
+                          </td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.newToday > 0 ? `+${g.subtotal.newToday}` : "0"}
+                          </td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.competition?.toFixed(2) ?? "—"}
+                          </td>
+                          <td className="px-5 py-1.5 text-right text-slate-400">—</td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.withConsent}
+                          </td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.withDocuments}
+                          </td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.withPaid}
+                          </td>
+                          <td className="px-5 py-1.5 text-right font-semibold">
+                            {g.subtotal.withDistant}
                           </td>
                         </tr>
                       )}
@@ -415,6 +437,30 @@ export function Dashboard() {
                     </Fragment>
                   ))}
                 </tbody>
+                <tfoot>
+                  <tr className="border-t-2 border-slate-300 bg-slate-50 font-bold text-slate-900">
+                    <td className="px-5 py-2.5">Итого</td>
+                    <td className="px-5 py-2.5 text-right">{stats.totalPlaces}</td>
+                    <td className="px-5 py-2.5 text-right">
+                      {stats.totalApplications}
+                    </td>
+                    <td className="px-5 py-2.5 text-right">
+                      {stats.newApplications > 0
+                        ? `+${stats.newApplications}`
+                        : "0"}
+                    </td>
+                    <td className="px-5 py-2.5 text-right">
+                      {stats.applicationsPerPlace?.toFixed(2) ?? "—"}
+                    </td>
+                    <td className="px-5 py-2.5 text-right text-slate-400">—</td>
+                    <td className="px-5 py-2.5 text-right">{stats.withConsent}</td>
+                    <td className="px-5 py-2.5 text-right">
+                      {stats.withDocuments}
+                    </td>
+                    <td className="px-5 py-2.5 text-right">{stats.withPaid}</td>
+                    <td className="px-5 py-2.5 text-right">{stats.withDistant}</td>
+                  </tr>
+                </tfoot>
               </table>
             </div>
           </Card>

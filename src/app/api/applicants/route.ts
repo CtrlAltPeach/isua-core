@@ -122,6 +122,7 @@ export async function POST(req: NextRequest) {
       specialRight: data.specialRight ?? false,
       isPaid: data.isPaid ?? false,
       isDistant: data.isDistant ?? false,
+      birthDate: data.birthDate ?? null,
       documentType: data.documentType ?? null,
       citizenship: data.citizenship,
       passportSeries: pii.passportSeries,

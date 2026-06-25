@@ -39,6 +39,7 @@ import {
   STATUS_OPTIONS,
   formatDate,
   formatTime,
+  formatBirthDate,
 } from "@/lib/applicant-ui";
 import { failingSubjects } from "@/lib/thresholds";
 import { Button, Input, Select, Badge, Card } from "@/components/ui";
@@ -148,6 +149,7 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
 function ApplicantDetails({ a }: { a: ApplicantWithProgram }) {
   return (
     <dl className="grid grid-cols-2 gap-x-6 gap-y-1.5 text-sm sm:grid-cols-4">
+      <Detail label="Дата рождения" value={formatBirthDate(a.birthDate)} />
       <Detail label="Гражданство" value={a.citizenship} />
       <Detail
         label="Документ об образовании"

@@ -97,6 +97,7 @@ export async function PUT(
     "specialRight",
     "isPaid",
     "isDistant",
+    "birthDate",
     "documentType",
     "citizenship",
     "passportSeries",
