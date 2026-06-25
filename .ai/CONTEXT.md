@@ -3,11 +3,13 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 15 + патчи — версия 0.15.3, ветка dev)
+## Текущее состояние (итерация 16 — версия 0.16.0, ветка dev)
 > Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
 > Preview-деплой использует dev-БД (см. `ops/DATABASE_ENVIRONMENTS.md`).
 > Патчи поверх 0.15.0: 0.15.1 (UX дашборда), 0.15.2 («сегодня» по локальной дате
 > таймзоны), 0.15.3 (событие «Создание записи» с автором в истории абитуриента).
+> Итерация 16 (M3): ротация ключа шифрования — keyring `ENCRYPTION_KEY` +
+> `ENCRYPTION_KEY_OLD` (trial-decrypt), скрипт `npm run crypto:rotate`. Тесты 89.
 
 ### Технологии (фактические)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
@@ -28,7 +30,8 @@
     регистрация закрыта (только admin создаёт юзеров; bootstrap первого admin на пустой БД)
   - Security-заголовки/CSP в `next.config.ts`
 - Шифрование ПДн: AES-256-GCM (`lib/crypto.ts`), поля passport/inn/snils зашифрованы
-  в БД, ключ ENCRYPTION_KEY. Шифрование на границе БД (`lib/applicant-pii.ts`).
+  в БД. Шифрование на границе БД (`lib/applicant-pii.ts`). Keyring: текущий ключ
+  `ENCRYPTION_KEY` + (на время ротации) `ENCRYPTION_KEY_OLD`; ротация — `npm run crypto:rotate`.
 - Рантайм: Node.js (npm), НЕ Bun
 
 ### Структура БД (6 моделей)

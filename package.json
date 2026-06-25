@@ -1,6 +1,6 @@
 {
   "name": "isua-core-v0",
-  "version": "0.15.3",
+  "version": "0.16.0",
   "private": true,
   "scripts": {
     "dev": "next dev",
@@ -12,7 +12,8 @@
     "db:migrate": "prisma migrate dev",
     "db:generate": "prisma generate",
     "db:seed": "tsx prisma/seed.ts",
-    "db:studio": "prisma studio"
+    "db:studio": "prisma studio",
+    "crypto:rotate": "tsx prisma/rotate-encryption.ts"
   },
   "prisma": {
     "seed": "tsx prisma/seed.ts"
