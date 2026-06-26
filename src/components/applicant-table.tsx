@@ -24,6 +24,7 @@ import {
   AlertTriangle,
   Loader2,
   FileDown,
+  HelpCircle,
 } from "lucide-react";
 import {
   applicantsApi,
@@ -51,9 +52,7 @@ type SortKey = "fullName" | "status" | "totalScore" | "createdAt";
 
 // align: выравнивание; thClass: ширина/выравнивание ячеек.
 type ColAlign = "left" | "right" | "center";
-// Главные колонки таблицы. Детальные поля (гражданство, паспорт, контакты,
-// заметка) вынесены в раскрывающуюся строку-деталь (7D) — так таблица узкая
-// и помещается без горизонтального скролла.
+
 const COLUMNS: {
   key: SortKey | null;
   label: string;
@@ -87,15 +86,14 @@ function Detail({ label, value }: { label: string; value?: string | null }) {
   );
 }
 
-// Маркеры абитуриента (база математики, квоты, платное, заметка) — общие для
-// табличного и карточного режимов.
+// ОБНОВЛЕННЫЕ ЦВЕТА МАРКЕРОВ
 function Markers({ a }: { a: ApplicantWithProgram }) {
   return (
     <>
       {a.mathBase != null && (
         <span
           title={`База математики: ${a.mathBase}`}
-          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-rose-100 text-xs font-bold text-rose-700"
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-red-50 text-xs font-bold text-red-600"
         >
           Б
         </span>
@@ -103,7 +101,7 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
       {a.specialQuota && (
         <span
           title="Особая квота"
-          className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-yellow-100 px-1 text-xs font-bold text-yellow-700"
+          className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700"
         >
           ОК
         </span>
@@ -111,7 +109,7 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
       {a.specialRight && (
         <span
           title="Особое право"
-          className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-200 px-1 text-xs font-bold text-amber-800"
+          className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700"
         >
           ОП
         </span>
@@ -119,7 +117,7 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
       {a.isPaid && (
         <span
           title="Платное обучение"
-          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-200 text-xs font-bold text-slate-600"
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-slate-100 text-xs font-bold text-slate-500"
         >
           П
         </span>
@@ -127,7 +125,8 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
       {a.isDistant && (
         <span
           title="Дистанционное обучение"
-          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-sky-100 text-xs font-bold text-sky-700"
+          // Индиго дает красивый контраст с изумрудным
+          className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-indigo-50 text-xs font-bold text-indigo-600"
         >
           Д
         </span>
@@ -135,12 +134,99 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
       {a.notes && (
         <span
           title={a.notes}
+          // Бирюзовый (cyan) отлично вписывается в зелено-белую гамму
           className="inline-flex size-5 shrink-0 items-center justify-center rounded bg-amber-100 text-xs font-bold text-amber-700"
         >
           З
         </span>
       )}
     </>
+  );
+}
+
+// Легенда обозначений (иконки/сокращения таблицы). Бейджи здесь продублированы
+// из <Markers> и ячеек таблицы — держать визуал в синхроне при смене стилей.
+function Legend() {
+  const items: { badge: React.ReactNode; text: string }[] = [
+    {
+      badge: (
+        <span className="inline-flex size-5 items-center justify-center rounded bg-red-50 text-xs font-bold text-red-600">
+          Б
+        </span>
+      ),
+      text: "База математики (оценка 2–5, в рейтинг не входит)",
+    },
+    {
+      badge: (
+        <span className="inline-flex h-5 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700">
+          ОК
+        </span>
+      ),
+      text: "Особая квота",
+    },
+    {
+      badge: (
+        <span className="inline-flex h-5 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700">
+          ОП
+        </span>
+      ),
+      text: "Особое право",
+    },
+    {
+      badge: (
+        <span className="inline-flex size-5 items-center justify-center rounded bg-slate-100 text-xs font-bold text-slate-500">
+          П
+        </span>
+      ),
+      text: "Платное обучение",
+    },
+    {
+      badge: (
+        <span className="inline-flex size-5 items-center justify-center rounded bg-indigo-50 text-xs font-bold text-indigo-600">
+          Д
+        </span>
+      ),
+      text: "Дистанционное обучение",
+    },
+    {
+      badge: (
+        <span className="inline-flex size-5 items-center justify-center rounded bg-amber-100 text-xs font-bold text-amber-700">
+          З
+        </span>
+      ),
+      text: "Есть заметка",
+    },
+    {
+      badge: <span className="inline-block size-2 rounded-full bg-amber-400" />,
+      text: "Балл по вступительным испытаниям (ВИ), а не по ЕГЭ",
+    },
+    {
+      badge: <AlertTriangle className="size-3.5 text-amber-500" />,
+      text: "Балл ниже минимального порога программы",
+    },
+    {
+      badge: <Check className="size-5 stroke-3 text-emerald-600" />,
+      text: "Согл. / Док. — есть согласие / документы собраны",
+    },
+    {
+      badge: <span className="font-bold text-red-400">✗</span>,
+      text: "Согл. / Док. — нет согласия / документы не собраны",
+    },
+  ];
+  return (
+    <Card className="border-emerald-100 bg-emerald-50/40 p-4">
+      <p className="mb-3 text-xs font-semibold tracking-wide text-slate-500 uppercase">
+        Обозначения
+      </p>
+      <dl className="grid grid-cols-1 gap-x-6 gap-y-2.5 text-sm sm:grid-cols-2 lg:grid-cols-3">
+        {items.map((it, i) => (
+          <div key={i} className="flex items-center gap-2.5">
+            <span className="flex w-6 shrink-0 justify-center">{it.badge}</span>
+            <span className="text-slate-600">{it.text}</span>
+          </div>
+        ))}
+      </dl>
+    </Card>
   );
 }
 
@@ -210,6 +296,9 @@ export function ApplicantTable({
   const [total, setTotal] = useState(0);
   const [loading, setLoading] = useState(true);
 
+  // Панель «Обозначения» (легенда иконок/сокращений).
+  const [showLegend, setShowLegend] = useState(false);
+
   // Группировка по дням (свёртываемые разделители).
   const [groupByDay, setGroupByDay] = useState(false);
   const [collapsedDays, setCollapsedDays] = useState<Set<string>>(new Set());
@@ -249,7 +338,10 @@ export function ApplicantTable({
 
   // Загрузка программ один раз.
   useEffect(() => {
-    programsApi.list().then(setPrograms).catch(() => {});
+    programsApi
+      .list()
+      .then(setPrograms)
+      .catch(() => {});
   }, []);
 
   const filters: ApplicantFilters = useMemo(
@@ -338,7 +430,7 @@ export function ApplicantTable({
   const dayGroups = (() => {
     const map = new Map<string, ApplicantWithProgram[]>();
     for (const a of items) {
-      const key = formatDate(a.createdAt, timezone); // dd.MM.yyyy
+      const key = formatDate(a.createdAt, timezone);
       if (!map.has(key)) map.set(key, []);
       map.get(key)!.push(a);
     }
@@ -362,123 +454,123 @@ export function ApplicantTable({
     const meta = STATUS_META[a.status as ApplicantStatus];
     // Предметы ниже порога программы (для значка-предупреждения у балла).
     const prog = programs.find((p) => p.id === a.programId);
-    const failing = prog?.minScores
-      ? failingSubjects(a, prog.minScores)
-      : [];
+    const failing = prog?.minScores ? failingSubjects(a, prog.minScores) : [];
     const expanded = expandedRows.has(a.id);
     return (
       <Fragment key={a.id}>
-      <tr
-        onClick={() => onEdit(a)}
-        className="cursor-pointer border-b border-slate-100 hover:bg-emerald-50/40"
-      >
-        {/* Шеврон раскрытия деталей (клик не открывает редактирование) */}
-        <td className="px-1 py-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              toggleRow(a.id);
-            }}
-            title={expanded ? "Свернуть детали" : "Показать детали"}
-            className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
-          >
-            {expanded ? (
-              <ChevronDown className="size-4" />
-            ) : (
-              <ChevronRightSmall className="size-4" />
-            )}
-          </button>
-        </td>
-        <td className="px-2.5 py-3 font-medium text-slate-900">
-          <span className="flex items-center gap-1.5">
-            {/* ФИО влезает полностью (колонка w-auto); сверхдлинное —
+        <tr
+          onClick={() => onEdit(a)}
+          className="cursor-pointer border-b border-slate-100 transition-colors hover:bg-emerald-50/50"
+        >
+          {/* Шеврон раскрытия деталей (клик не открывает редактирование) */}
+          <td className="px-1 py-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                toggleRow(a.id);
+              }}
+              title={expanded ? "Свернуть детали" : "Показать детали"}
+              className="inline-flex size-7 items-center justify-center rounded-md text-slate-400 hover:bg-slate-100 hover:text-slate-700"
+            >
+              {expanded ? (
+                <ChevronDown className="size-4" />
+              ) : (
+                <ChevronRightSmall className="size-4" />
+              )}
+            </button>
+          </td>
+          <td className="px-2.5 py-3 font-medium text-slate-900">
+            <span className="flex items-center gap-1.5">
+              {/* ФИО влезает полностью (колонка w-auto); сверхдлинное —
                 обрезается многоточием, полное имя по наведению (title). */}
-            <span className="min-w-0 truncate" title={a.fullName}>
-              {a.fullName}
+              <span className="min-w-0 truncate" title={a.fullName}>
+                {a.fullName}
+              </span>
+              <Markers a={a} />
             </span>
-            <Markers a={a} />
-          </span>
-        </td>
-        <td className="truncate px-2.5 py-3 text-slate-600">
-          {a.program?.name ?? "—"}
-        </td>
-        <td className="px-2.5 py-3">
-          {meta ? (
-            <Badge className={meta.badge}>{meta.label}</Badge>
-          ) : (
-            <Badge className="bg-slate-100 text-slate-500">{a.status}</Badge>
-          )}
-        </td>
-        <td className="px-2.5 py-3 text-right font-medium text-slate-900">
-          <span className="inline-flex items-center justify-end gap-1">
-            {failing.length > 0 && (
-              <span
-                className="inline-flex"
-                title={`Ниже порога: ${failing
-                  .map((f) => `${f.field} ${f.value}<${f.min}`)
-                  .join(", ")}`}
-              >
-                <AlertTriangle className="size-3.5 text-amber-500" />
-              </span>
+          </td>
+          <td className="truncate px-2.5 py-3 text-slate-600">
+            {a.program?.name ?? "—"}
+          </td>
+          <td className="px-2.5 py-3">
+            {meta ? (
+              <Badge className={meta.badge}>{meta.label}</Badge>
+            ) : (
+              <Badge className="bg-slate-100 text-slate-500">{a.status}</Badge>
             )}
-            {a.viScore != null && (
-              <span
-                title="Балл по вступительным испытаниям (ВИ), не по ЕГЭ"
-                className="rounded bg-sky-100 px-1 text-[10px] font-bold text-sky-700"
-              >
-                ВИ
-              </span>
+          </td>
+          <td className="px-2.5 py-3 text-right font-medium text-slate-900">
+            <span className="inline-flex items-center justify-end gap-1">
+              {failing.length > 0 && (
+                <span
+                  className="inline-flex"
+                  title={`Ниже порога: ${failing
+                    .map((f) => `${f.field} ${f.value}<${f.min}`)
+                    .join(", ")}`}
+                >
+                  <AlertTriangle className="size-3.5 text-amber-500" />
+                </span>
+              )}
+              {a.viScore != null && (
+                <span
+                  title="Балл по вступительным испытаниям (ВИ), не по ЕГЭ"
+                  className="inline-block size-2 shrink-0 rounded-full bg-amber-400"
+                />
+              )}
+              {a.totalScore != null ? a.totalScore : "—"}
+            </span>
+          </td>
+          <td className="px-2.5 py-3 text-center">
+            {a.consentToEnroll ? (
+              <Check className="mx-auto size-5 stroke-3 text-emerald-600" />
+            ) : (
+              // Меняем резкий rose-400 на более спокойный red-400
+              <span className="font-bold text-red-400">✗</span>
             )}
-            {a.totalScore != null ? a.totalScore : "—"}
-          </span>
-        </td>
-        <td className="px-2.5 py-3 text-center">
-          {a.consentToEnroll ? (
-            <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
-          ) : (
-            <span className="font-bold text-rose-400">✗</span>
-          )}
-        </td>
-        <td className="px-2.5 py-3 text-center">
-          {a.documentsComplete ? (
-            <Check className="mx-auto size-5 stroke-[3] text-emerald-600" />
-          ) : (
-            <span className="font-bold text-rose-400">✗</span>
-          )}
-        </td>
-        <td className="truncate px-2.5 py-3 text-slate-600" title={a.phone ?? ""}>
-          {a.phone ?? "—"}
-        </td>
-        <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
-          <div className="leading-tight">
-            <div>{formatDate(a.createdAt, timezone)}</div>
-            <div className="text-xs text-slate-400">
-              {formatTime(a.createdAt, timezone)}
-            </div>
-          </div>
-        </td>
-        <td className="px-1 py-3">
-          <button
-            onClick={(e) => {
-              e.stopPropagation();
-              onHistory(a);
-            }}
-            title="История изменений"
-            className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+          </td>
+          <td className="px-2.5 py-3 text-center">
+            {a.documentsComplete ? (
+              <Check className="mx-auto size-5 stroke-3 text-emerald-600" />
+            ) : (
+              <span className="font-bold text-red-400">✗</span>
+            )}
+          </td>
+          <td
+            className="truncate px-2.5 py-3 text-slate-600"
+            title={a.phone ?? ""}
           >
-            <Clock className="size-4" />
-          </button>
-        </td>
-      </tr>
-      {/* Строка-деталь: гражданство, паспорт, контакты, заметка (7D). */}
-      {expanded && (
-        <tr className="border-b border-slate-100 bg-slate-50/60">
-          <td />
-          <td colSpan={colCount - 1} className="px-2.5 pb-3 pt-1">
-            <ApplicantDetails a={a} />
+            {a.phone ?? "—"}
+          </td>
+          <td className="whitespace-nowrap px-2.5 py-3 text-slate-500">
+            <div className="leading-tight">
+              <div>{formatDate(a.createdAt, timezone)}</div>
+              <div className="text-xs text-slate-400">
+                {formatTime(a.createdAt, timezone)}
+              </div>
+            </div>
+          </td>
+          <td className="px-1 py-3">
+            <button
+              onClick={(e) => {
+                e.stopPropagation();
+                onHistory(a);
+              }}
+              title="История изменений"
+              className="inline-flex size-8 items-center justify-center rounded-md text-slate-500 hover:bg-emerald-100 hover:text-emerald-700"
+            >
+              <Clock className="size-4" />
+            </button>
           </td>
         </tr>
-      )}
+        {/* Строка-деталь: гражданство, паспорт, контакты, заметка (7D). */}
+        {expanded && (
+          <tr className="border-b border-slate-100 bg-slate-50/60">
+            <td />
+            <td colSpan={colCount - 1} className="px-2.5 pb-3 pt-1">
+              <ApplicantDetails a={a} />
+            </td>
+          </tr>
+        )}
       </Fragment>
     );
   };
@@ -494,7 +586,7 @@ export function ApplicantTable({
       <div
         key={a.id}
         onClick={() => onEdit(a)}
-        className="cursor-pointer border-b border-slate-100 p-3 last:border-0 active:bg-emerald-50/40"
+        className="cursor-pointer border-b border-slate-100 p-3 last:border-0 transition-colors active:bg-emerald-50/50"
       >
         <div className="flex items-start justify-between gap-2">
           <div className="flex min-w-0 flex-1 items-center gap-1.5 font-medium text-slate-900">
@@ -510,10 +602,8 @@ export function ApplicantTable({
             {a.viScore != null && (
               <span
                 title="Балл по вступительным испытаниям (ВИ), не по ЕГЭ"
-                className="rounded bg-sky-100 px-1 text-[10px] font-bold text-sky-700"
-              >
-                ВИ
-              </span>
+                className="inline-block size-2 shrink-0 rounded-full bg-amber-400"
+              />
             )}
             {a.totalScore != null ? a.totalScore : "—"}
             <span className="text-xs font-normal text-slate-400">б</span>
@@ -533,17 +623,17 @@ export function ApplicantTable({
           <span className="inline-flex items-center gap-1">
             Согл.
             {a.consentToEnroll ? (
-              <Check className="size-4 stroke-[3] text-emerald-600" />
+              <Check className="size-4 stroke-3 text-emerald-600" />
             ) : (
-              <span className="font-bold text-rose-400">✗</span>
+              <span className="font-bold text-red-400">✗</span>
             )}
           </span>
           <span className="inline-flex items-center gap-1">
             Док.
             {a.documentsComplete ? (
-              <Check className="size-4 stroke-[3] text-emerald-600" />
+              <Check className="size-4 stroke-3 text-emerald-600" />
             ) : (
-              <span className="font-bold text-rose-400">✗</span>
+              <span className="font-bold text-red-400">✗</span>
             )}
           </span>
           {a.phone && <span>{a.phone}</span>}
@@ -577,7 +667,9 @@ export function ApplicantTable({
           {/* Дата+время — справа, на одном уровне с кнопкой «История» */}
           <span className="ml-auto text-right text-xs leading-tight text-slate-400">
             {formatDate(a.createdAt, timezone)}{" "}
-            <span className="text-slate-400">{formatTime(a.createdAt, timezone)}</span>
+            <span className="text-slate-400">
+              {formatTime(a.createdAt, timezone)}
+            </span>
           </span>
         </div>
 
@@ -664,14 +756,25 @@ export function ApplicantTable({
           <CalendarDays className="size-4" />
           По дням
         </Button>
+        <Button
+          variant={showLegend ? "primary" : "secondary"}
+          size="sm"
+          onClick={() => setShowLegend((v) => !v)}
+          title="Показать обозначения иконок и сокращений"
+        >
+          <HelpCircle className="size-4" />
+          Обозначения
+        </Button>
       </div>
+
+      {showLegend && <Legend />}
 
       {/* Таблица — область фикс-высоты: шапка закреплена (sticky),
           вертикальный и горизонтальный скролл внутри этой области.
           На телефоне (<md) таблица скрыта — вместо неё карточный список. */}
       <Card className="overflow-hidden">
         <div className="hidden max-h-[calc(100vh-19rem)] overflow-auto lg:block">
-          <table className="w-full min-w-[50rem] table-fixed text-sm">
+          <table className="w-full min-w-200 table-fixed text-sm">
             <thead>
               <tr className="border-b border-slate-200 bg-slate-50 text-left text-slate-500">
                 {COLUMNS.map((col, i) => (
@@ -722,7 +825,7 @@ export function ApplicantTable({
                   return (
                     <Fragment key={g.date}>
                       <tr
-                        className="cursor-pointer border-b border-slate-200 bg-slate-50 hover:bg-emerald-50"
+                        className="cursor-pointer border-b border-slate-200 bg-slate-50 transition-colors hover:bg-emerald-50/50"
                         onClick={() => toggleDay(g.date)}
                       >
                         <td
@@ -735,7 +838,8 @@ export function ApplicantTable({
                             ) : (
                               <ChevronDown className="size-4 text-slate-400" />
                             )}
-                            {g.date} ({g.weekday}) — {g.rows.length} абитуриент(ов)
+                            {g.date} ({g.weekday}) — {g.rows.length}{" "}
+                            абитуриент(ов)
                           </span>
                         </td>
                       </tr>
@@ -789,7 +893,9 @@ export function ApplicantTable({
       {/* Пагинация */}
       <div className="flex flex-wrap items-center justify-between gap-3 text-sm text-slate-600">
         <div className="flex items-center gap-2">
-          <span>Показано {from}–{to} из {total}</span>
+          <span>
+            Показано {from}–{to} из {total}
+          </span>
           <Select
             value={limit}
             onChange={(e) => {

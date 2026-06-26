@@ -78,9 +78,11 @@ SELECT 'ПЕТРОВ' ILIKE '%петр%';
 | `npm start` | Запуск прод-сборки |
 | `npm run lint` | ESLint |
 | `npm test` | Unit + интеграционные тесты (Vitest) |
+| `npm run test:watch` | Vitest в watch-режиме |
 | `npm run db:migrate` | `prisma migrate dev` (создать миграцию) |
 | `npm run db:seed` | Сидинг тестовых данных |
 | `npm run db:studio` | Prisma Studio |
+| `npm run crypto:rotate` | Перешифрование ПДн при ротации ключа |
 
 ## Переменные окружения
 
@@ -88,9 +90,12 @@ SELECT 'ПЕТРОВ' ILIKE '%петр%';
 
 - `DATABASE_URL` — строка подключения к PostgreSQL.
 - `JWT_SECRET`, `JWT_EXPIRY` — подпись и срок жизни токена.
-- `ENCRYPTION_KEY` — 32 байта (hex) для AES-256-GCM. ⚠️ При смене ключа ранее
-  зашифрованные ПДн становятся нечитаемыми — храните как пароль от БД.
+- `ENCRYPTION_KEY` — 32 байта (hex) для AES-256-GCM. ⚠️ Храните как пароль от БД;
+  для смены ключа без потери данных используйте `ENCRYPTION_KEY_OLD` + `npm run crypto:rotate`
+  (runbook: `.ai/SECURITY.md`).
+- `ENCRYPTION_KEY_OLD` — предыдущий ключ (или несколько через запятую) на время ротации.
 - `TRUST_PROXY` — доверять `X-Forwarded-For` (только за известным reverse-proxy).
+- `SEED_DATA` — `1` чтобы засеять тестовые данные (4 программы + 60 абитуриентов + демо-админ).
 - `SEED_ADMIN_PASSWORD` — пароль демо-админа при сидинге на проде.
 
 ## Тесты
