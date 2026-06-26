@@ -89,6 +89,19 @@ const optionalString = z
   .optional()
   .transform((v) => (v === undefined ? null : v));
 
+// Дата рождения: пусто/null → null; иначе валидная дата (год 1900..сегодня).
+// HTML-инпут type="date" отдаёт "YYYY-MM-DD"; coerce.date парсит как UTC-полночь.
+const birthDateField = z.preprocess(
+  emptyToNull,
+  z.coerce
+    .date()
+    .refine(
+      (d) => d.getUTCFullYear() >= 1900 && d.getTime() <= Date.now(),
+      "Некорректная дата рождения",
+    )
+    .nullable(),
+);
+
 // Поля, общие для создания и обновления.
 const applicantBase = {
   fullName: z.string().min(1, "ФИО обязательно").max(200),
@@ -105,6 +118,7 @@ const applicantBase = {
   specialRight: z.coerce.boolean().optional(),
   isPaid: z.coerce.boolean().optional(),
   isDistant: z.coerce.boolean().optional(),
+  birthDate: birthDateField,
   documentType: z
     .union([z.enum(["diploma", "certificate"]), z.literal(""), z.null()])
     .optional()
@@ -122,11 +136,16 @@ const applicantBase = {
   physics: scoreField,
   informatics: scoreField,
   geography: scoreField,
-  // Доп. баллы / ВИ: целое 0..100 (M5 — верхняя граница против опечатки/
-  // злоупотребления). Может поднять итог >300. Пусто/null → 0.
+  // Доп. баллы (индивидуальные достижения): целое 0..10. Пусто/null → 0.
   additionalScores: z.preprocess(
     (v) => (v === "" || v === null || v === undefined ? 0 : v),
-    z.coerce.number().int().min(0).max(100, "Доп. баллы не более 100"),
+    z.coerce.number().int().min(0).max(10, "Доп. баллы не более 10"),
+  ),
+  // ВИ — вступительные испытания вуза (для поступающих без ЕГЭ): целое 0..300
+  // либо null (= сдаёт по ЕГЭ). Если задано — заменяет сумму ЕГЭ в итоговом балле.
+  viScore: z.preprocess(
+    emptyToNull,
+    z.coerce.number().int("Балл — целое число").min(0).max(300, "ВИ не более 300").nullable(),
   ),
   registrationAddress: optionalString,
   inn: optionalString,

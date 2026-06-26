@@ -93,9 +93,11 @@ export async function POST(req: NextRequest) {
   const mathBase = data.mathBase ?? null;
   const mathProfile = mathBase != null ? null : (data.mathProfile ?? null);
   const additionalScores = data.additionalScores ?? 0;
+  const viScore = data.viScore ?? null;
   const totalScore = calculateTotalScore(
     { ...data, mathProfile },
     additionalScores,
+    viScore,
   );
   const consent = normalizeConsent(status, data.consentToEnroll ?? false);
 
@@ -120,6 +122,7 @@ export async function POST(req: NextRequest) {
       specialRight: data.specialRight ?? false,
       isPaid: data.isPaid ?? false,
       isDistant: data.isDistant ?? false,
+      birthDate: data.birthDate ?? null,
       documentType: data.documentType ?? null,
       citizenship: data.citizenship,
       passportSeries: pii.passportSeries,
@@ -132,6 +135,7 @@ export async function POST(req: NextRequest) {
       informatics: data.informatics,
       geography: data.geography,
       additionalScores,
+      viScore,
       totalScore,
       registrationAddress: data.registrationAddress,
       inn: pii.inn,

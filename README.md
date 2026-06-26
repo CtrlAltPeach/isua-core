@@ -19,8 +19,9 @@
 ## Требования
 
 - Node.js 20+
-- PostgreSQL 17, **созданный с ICU-локалью `ru-RU`** — иначе регистронезависимый
-  поиск по кириллице не работает (см. ниже и `.ai/ops/DATABASE_ENVIRONMENTS.md`).
+- PostgreSQL 17+ (локально используется 18), **созданный с ICU-локалью `ru-RU`** —
+  иначе регистронезависимый поиск по кириллице не работает (см. ниже и
+  `.ai/ops/DATABASE_ENVIRONMENTS.md`).
 
 ## Быстрый старт (локально)
 
@@ -77,9 +78,11 @@ SELECT 'ПЕТРОВ' ILIKE '%петр%';
 | `npm start` | Запуск прод-сборки |
 | `npm run lint` | ESLint |
 | `npm test` | Unit + интеграционные тесты (Vitest) |
+| `npm run test:watch` | Vitest в watch-режиме |
 | `npm run db:migrate` | `prisma migrate dev` (создать миграцию) |
 | `npm run db:seed` | Сидинг тестовых данных |
 | `npm run db:studio` | Prisma Studio |
+| `npm run crypto:rotate` | Перешифрование ПДн при ротации ключа |
 
 ## Переменные окружения
 
@@ -87,9 +90,12 @@ SELECT 'ПЕТРОВ' ILIKE '%петр%';
 
 - `DATABASE_URL` — строка подключения к PostgreSQL.
 - `JWT_SECRET`, `JWT_EXPIRY` — подпись и срок жизни токена.
-- `ENCRYPTION_KEY` — 32 байта (hex) для AES-256-GCM. ⚠️ При смене ключа ранее
-  зашифрованные ПДн становятся нечитаемыми — храните как пароль от БД.
+- `ENCRYPTION_KEY` — 32 байта (hex) для AES-256-GCM. ⚠️ Храните как пароль от БД;
+  для смены ключа без потери данных используйте `ENCRYPTION_KEY_OLD` + `npm run crypto:rotate`
+  (runbook: `.ai/SECURITY.md`).
+- `ENCRYPTION_KEY_OLD` — предыдущий ключ (или несколько через запятую) на время ротации.
 - `TRUST_PROXY` — доверять `X-Forwarded-For` (только за известным reverse-proxy).
+- `SEED_DATA` — `1` чтобы засеять тестовые данные (4 программы + 60 абитуриентов + демо-админ).
 - `SEED_ADMIN_PASSWORD` — пароль демо-админа при сидинге на проде.
 
 ## Тесты
@@ -100,8 +106,9 @@ npm run test:watch  # watch-режим
 ```
 
 Покрытие: расчёт баллов, бизнес-логика согласий, шифрование, журнал изменений,
-таймзоны, retry клиентской fetch-обёртки, интеграционные тесты API-роутов
-(`/api/applicants`, `/api/programs`).
+таймзоны (включая «сегодня» по локальной дате), retry клиентской fetch-обёртки,
+интеграционные тесты API-роутов (`/api/applicants`, `/api/programs`,
+`/api/program-groups`, история с событием создания).
 
 ## Деплой (Vercel)
 

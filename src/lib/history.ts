@@ -16,6 +16,7 @@ export const LOGGED_FIELDS = [
   "specialRight",
   "isPaid",
   "isDistant",
+  "birthDate",
   "documentType",
   "citizenship",
   "passportSeries",
@@ -28,6 +29,7 @@ export const LOGGED_FIELDS = [
   "informatics",
   "geography",
   "additionalScores",
+  "viScore",
   "registrationAddress",
   "inn",
   "snils",
@@ -41,6 +43,9 @@ type AnyRecord = Record<string, unknown>;
 function toStr(v: unknown): string | null {
   if (v === null || v === undefined) return null;
   if (typeof v === "boolean") return v ? "true" : "false";
+  // Дата (birthDate) — стабильно как YYYY-MM-DD (без времени/таймзоны),
+  // чтобы сравнение old/new и отображение в истории были предсказуемы.
+  if (v instanceof Date) return v.toISOString().slice(0, 10);
   return String(v);
 }
 

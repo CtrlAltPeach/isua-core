@@ -3,14 +3,17 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 15 завершена — версия 0.15.0, ветка dev)
-> Работа ведётся в ветке `dev` (main = стабильный прод, Vercel автодеплоит main).
-> Preview-деплой использует dev-БД (см. `ops/DATABASE_ENVIRONMENTS.md`).
+## Текущее состояние (патч 0.18.1 — ветка dev → main)
+> Патч 0.18.1 (2026-06-26): легенда обозначений в таблице абитуриентов (кнопка
+> «Обозначения»), цветовая полировка маркеров (Б/ОК/ОП/П/Д), ВИ-маркер → точка.
+> Итерация 18: дата рождения (`birthDate DATE`, миграция `add_birth_date`) +
+> подытоги/итог в таблице «Конкурс по программам» на дашборде. Тесты 101.
+> Итерация 17: разделение «Доп. баллы / ВИ» (`viScore` 0–300, заменяет ЕГЭ в total).
 
 ### Технологии (фактические)
 - Фреймворк: Next.js 16.2 (App Router, src-dir)
 - Язык: TypeScript 5
-- БД: PostgreSQL 17 portable (:5432, ICU locale ru-RU) + Prisma 6.19 ORM
+- БД: PostgreSQL 18 (локально — системный сервис :5432; БД должна быть с ICU-локалью ru-RU) + Prisma 6.19 ORM
 - Frontend: React 19, Tailwind CSS 4, Lucide icons
   - ВНИМАНИЕ: shadcn/ui, TanStack Table, Recharts **НЕ** используются.
     UI — собственные лёгкие компоненты в `src/components/ui.tsx`,
@@ -26,7 +29,8 @@
     регистрация закрыта (только admin создаёт юзеров; bootstrap первого admin на пустой БД)
   - Security-заголовки/CSP в `next.config.ts`
 - Шифрование ПДн: AES-256-GCM (`lib/crypto.ts`), поля passport/inn/snils зашифрованы
-  в БД, ключ ENCRYPTION_KEY. Шифрование на границе БД (`lib/applicant-pii.ts`).
+  в БД. Шифрование на границе БД (`lib/applicant-pii.ts`). Keyring: текущий ключ
+  `ENCRYPTION_KEY` + (на время ротации) `ENCRYPTION_KEY_OLD`; ротация — `npm run crypto:rotate`.
 - Рантайм: Node.js (npm), НЕ Bun
 
 ### Структура БД (6 моделей)
@@ -35,8 +39,9 @@
 - **Program:** id, name (uniq), places (количество бюджетных мест), minScores (Json?), programGroupId (FK→ProgramGroup, onDelete SetNull), createdAt
 - **Applicant:**
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
-  - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100), additionalScores, totalScore (auto: сумма топ-3 предметов + доп.баллы, без mathBase)
+  - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100); additionalScores (доп. баллы 0-10); viScore? (ВИ — вступит. испытания вуза 0-300, если задано — ЗАМЕНЯЕТ сумму ЕГЭ); totalScore (auto: (viScore ?? сумма топ-3 предметов без mathBase) + доп.баллы)
   - Согласия: consentToEnroll (bool), documentsComplete (bool); флаги: specialQuota, specialRight, isPaid, isDistant (дистант)
+  - Дата рождения: birthDate? (DATE, без времени; не шифруется)
   - Документы: documentType (diploma|certificate), citizenship, passportSeries, passportNumber
   - Персональные: registrationAddress?, inn?, snils?, notes?
   - ⚠️ passportSeries/passportNumber/inn/snils хранятся ЗАШИФРОВАННЫМИ (AES-256-GCM, enc:v1:…)
@@ -91,7 +96,7 @@ GET  /api/programs            POST /api/programs   (отдаёт groupId/groupNa
 PUT  /api/programs/[id]       DELETE /api/programs/[id]
 GET  /api/program-groups      POST /api/program-groups            (admin)
 PUT  /api/program-groups/[id] DELETE /api/program-groups/[id]     (admin, SetNull)
-GET  /api/stats/daily         (byProgram + byGroup с подытогами; согласия сегодня в разрезе программы)
+GET  /api/stats/daily         (byProgram + byGroup с подытогами places/абит/согл/док/платн/дистант/конкурс; согласия сегодня в разрезе программы)
 GET  /api/users               PATCH /api/users/[id] (role)   DELETE /api/users/[id]
 GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 ```
@@ -113,7 +118,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-79 тестов (vitest: unit + интеграционные API)
+101 тест (vitest: unit + интеграционные API)
 0 ESLint ошибок
 
 ---
@@ -122,9 +127,9 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 
 | Документ | Содержание |
 |----------|-----------|
-| `CHANGELOG.md` | История итераций 1–14 (каноничный chanelog) |
+| `CHANGELOG.md` | История итераций 1–18 (каноничный changelog) |
 | `REQUIREMENTS_BACKLOG.md` | Реестр требований по модулям, tracking-таблица |
-| `NEXT_ITERATION.md` | План следующей итерации (кандидаты 15) |
+| `NEXT_ITERATION.md` | План следующей итерации (кандидаты 19) |
 | `SECURITY.md` | Аудит безопасности: закрыто / осталось |
 | `ops/DATABASE_ENVIRONMENTS.md` | Среды БД, ICU-локаль, миграции, squash |
 
@@ -133,9 +138,10 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 ---
 
 ## Локальная разработка
-PostgreSQL 17 portable на :5432
-Запуск: `pg_ctl -D path/to/data -l logfile start`
-`DATABASE_URL=postgresql://user:pass@localhost:5432/isua`
+PostgreSQL 18 (системный сервис `postgresql-x64-18`) на :5432.
+`DATABASE_URL=postgresql://postgres:<пароль>@127.0.0.1:5432/isua` (пароль роли задан
+при установке PG18). Раньше был portable PG17 (`%LOCALAPPDATA%\isua-pg`) — удалён.
+Запуск node/npm в этом окружении: `node` в `C:\Program Files\nodejs` (не в PATH).
 
 Next.js 16 dev:
 `npm run dev` → http://localhost:3000

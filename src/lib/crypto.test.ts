@@ -1,13 +1,16 @@
-import { describe, it, expect, beforeAll } from "vitest";
+import { describe, it, expect, beforeAll, afterEach } from "vitest";
 
-// Ключ для тестов задаётся ДО импорта модуля (loadKey ленивый, читает env).
+// Базовый ключ для основного набора. Задаётся ДО первого вызова (loadKey
+// ленивый, читает env). Ротационные тесты ниже подменяют ключи сами.
+const BASE_KEY =
+  "0000000000000000000000000000000000000000000000000000000000000001";
 beforeAll(() => {
-  process.env.ENCRYPTION_KEY =
-    "0000000000000000000000000000000000000000000000000000000000000001";
+  process.env.ENCRYPTION_KEY = BASE_KEY;
 });
 
 // Динамический импорт после установки env.
-const { encrypt, decrypt, isEncrypted } = await import("@/lib/crypto");
+const { encrypt, decrypt, isEncrypted, isUnderCurrentKey, resetKeyCache } =
+  await import("@/lib/crypto");
 
 describe("crypto (AES-256-GCM)", () => {
   it("round-trip: decrypt(encrypt(x)) === x", () => {
@@ -55,5 +58,78 @@ describe("crypto (AES-256-GCM)", () => {
   it("кириллица и юникод сохраняются", () => {
     const v = "Иванов Пётр — №42 ✓";
     expect(decrypt(encrypt(v)!)).toBe(v);
+  });
+});
+
+describe("crypto: ротация ключа (keyring)", () => {
+  const KEY_OLD =
+    "1111111111111111111111111111111111111111111111111111111111111111";
+  const KEY_NEW =
+    "2222222222222222222222222222222222222222222222222222222222222222";
+  const KEY_THIRD =
+    "3333333333333333333333333333333333333333333333333333333333333333";
+
+  // Подменить активный набор ключей и сбросить кеш.
+  function useKeys(current: string, old?: string) {
+    process.env.ENCRYPTION_KEY = current;
+    if (old === undefined) delete process.env.ENCRYPTION_KEY_OLD;
+    else process.env.ENCRYPTION_KEY_OLD = old;
+    resetKeyCache();
+  }
+
+  // Вернуть базовый ключ, чтобы не влиять на другие наборы тестов.
+  afterEach(() => {
+    process.env.ENCRYPTION_KEY = BASE_KEY;
+    delete process.env.ENCRYPTION_KEY_OLD;
+    resetKeyCache();
+  });
+
+  it("старый ключ в keyring расшифровывает зашифрованное им значение", () => {
+    useKeys(KEY_OLD);
+    const enc = encrypt("4509 123456")!;
+    useKeys(KEY_NEW, KEY_OLD); // ротация: новый — текущий, старый — в OLD
+    expect(decrypt(enc)).toBe("4509 123456");
+  });
+
+  it("ни текущий, ни старый ключ не подходят → null", () => {
+    useKeys(KEY_OLD);
+    const enc = encrypt("секрет")!;
+    useKeys(KEY_NEW); // старого нет в keyring
+    expect(decrypt(enc)).toBeNull();
+  });
+
+  it("ре-шифрование делает значение читаемым только новым ключом", () => {
+    useKeys(KEY_OLD);
+    const oldCipher = encrypt("СНИЛС-123")!;
+    // Ротация: keyring (новый+старый) расшифровывает → шифруем новым.
+    useKeys(KEY_NEW, KEY_OLD);
+    const plain = decrypt(oldCipher)!;
+    expect(plain).toBe("СНИЛС-123");
+    const newCipher = encrypt(plain)!;
+    expect(newCipher).not.toBe(oldCipher);
+    // OLD убран: новым ключом значение читается, старый шифр — уже нет.
+    useKeys(KEY_NEW);
+    expect(decrypt(newCipher)).toBe("СНИЛС-123");
+    expect(decrypt(oldCipher)).toBeNull();
+  });
+
+  it("несколько старых ключей через запятую — пробуются все", () => {
+    useKeys(KEY_OLD);
+    const c1 = encrypt("один")!;
+    useKeys(KEY_THIRD);
+    const c3 = encrypt("три")!;
+    useKeys(KEY_NEW, `${KEY_OLD},${KEY_THIRD}`);
+    expect(decrypt(c1)).toBe("один");
+    expect(decrypt(c3)).toBe("три");
+  });
+
+  it("isUnderCurrentKey: true только для текущего ключа", () => {
+    useKeys(KEY_OLD);
+    const oldCipher = encrypt("x")!;
+    useKeys(KEY_NEW, KEY_OLD);
+    expect(isUnderCurrentKey(oldCipher)).toBe(false); // зашифровано старым
+    const newCipher = encrypt("x")!;
+    expect(isUnderCurrentKey(newCipher)).toBe(true); // зашифровано текущим
+    expect(isUnderCurrentKey("открытый_текст")).toBe(false); // legacy
   });
 });

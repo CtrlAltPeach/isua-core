@@ -212,6 +212,9 @@ export async function GET(req: NextRequest) {
         places: s.places + r.places,
         applicants: s.applicants + r.applicants,
         withConsent: s.withConsent + r.withConsent,
+        withDocuments: s.withDocuments + r.withDocuments,
+        withPaid: s.withPaid + r.withPaid,
+        withDistant: s.withDistant + r.withDistant,
         newToday: s.newToday + r.newToday,
         consentGivenToday: s.consentGivenToday + r.consentGivenToday,
         consentWithdrawnToday:
@@ -221,16 +224,24 @@ export async function GET(req: NextRequest) {
         places: 0,
         applicants: 0,
         withConsent: 0,
+        withDocuments: 0,
+        withPaid: 0,
+        withDistant: 0,
         newToday: 0,
         consentGivenToday: 0,
         consentWithdrawnToday: 0,
       },
     );
+    // Конкурс по группе: суммарно абитуриентов на суммарные места.
+    const competition =
+      subtotal.places > 0
+        ? Math.round((subtotal.applicants / subtotal.places) * 100) / 100
+        : null;
     return {
       groupId: key,
       groupName: key === null ? null : groupMeta.get(key)!.name,
       programs: rows,
-      subtotal,
+      subtotal: { ...subtotal, competition },
     };
   });
 

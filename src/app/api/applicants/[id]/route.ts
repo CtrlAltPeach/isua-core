@@ -97,6 +97,7 @@ export async function PUT(
     "specialRight",
     "isPaid",
     "isDistant",
+    "birthDate",
     "documentType",
     "citizenship",
     "passportSeries",
@@ -109,6 +110,7 @@ export async function PUT(
     "informatics",
     "geography",
     "additionalScores",
+    "viScore",
     "registrationAddress",
     "inn",
     "snils",
@@ -173,7 +175,9 @@ export async function PUT(
   const pick = <K extends keyof typeof current>(k: K) =>
     k in rest ? (rest as Record<string, unknown>)[k as string] : current[k];
   const scoreTouched =
-    SCORE_FIELDS.some((f) => f in rest) || "additionalScores" in rest;
+    SCORE_FIELDS.some((f) => f in rest) ||
+    "additionalScores" in rest ||
+    "viScore" in rest;
   if (scoreTouched) {
     const merged = {
       mathProfile: pick("mathProfile") as number | null,
@@ -184,7 +188,8 @@ export async function PUT(
       geography: pick("geography") as number | null,
     };
     const extra = pick("additionalScores") as number | null;
-    updates.totalScore = calculateTotalScore(merged, extra ?? 0);
+    const vi = pick("viScore") as number | null;
+    updates.totalScore = calculateTotalScore(merged, extra ?? 0, vi);
   }
 
   // Согласие: нормализуем по итоговому статусу.

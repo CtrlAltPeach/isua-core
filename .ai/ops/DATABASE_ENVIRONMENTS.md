@@ -9,7 +9,12 @@ preview (ветка `dev`) ходят в РАЗНЫЕ базы.
 |-------|--------------|-------------|--------------|
 | `main` | Production   | прод-БД (боевые данные) | значение для **Production** |
 | `dev`  | Preview      | dev-БД (тестовые данные) | значение для **Preview** |
-| локально | —          | PostgreSQL portable :5432 | из `.env` |
+| локально | —          | PostgreSQL 18 (системный сервис `postgresql-x64-18`) :5432 | из `.env` |
+
+> ⚠️ Локальная БД сменилась (2026-06-22): portable PG17 (`%LOCALAPPDATA%\isua-pg`)
+> удалён, на :5432 теперь системный **PostgreSQL 18** (auth `scram-sha-256`, пароль
+> роли `postgres` задан при установке). Каталог бэкапов portable-инстанса исчез —
+> бэкапы для PG18 настроить заново (раздел «Бэкапы / дампы БД» ниже).
 
 ## Разовая настройка preview-БД (делается в Vercel + у провайдера БД)
 
@@ -51,7 +56,7 @@ $env:DATABASE_URL="<dev-url>" ENCRYPTION_KEY="<key>" npm run db:seed
 1. В ветке `dev` правлю `prisma/schema.prisma`, создаю миграцию в
    `prisma/migrations/<timestamp>_<name>/migration.sql` (вручную в этой среде:
    интерактивный `migrate dev` недоступен → пишем SQL + `migrate deploy` локально).
-2. Тестирую локально (`migrate deploy` на portable-БД).
+2. Тестирую локально (`migrate deploy` на локальной БД PG18).
 3. Коммит в `dev` → Vercel поднимает preview. Перед/после — накатываю миграцию
    на **dev-БД** (`DATABASE_URL=<dev-url> migrate deploy`). Preview не падает.
 4. Когда готово к проду: слить `dev → main` → Vercel деплоит прод. Накатить
