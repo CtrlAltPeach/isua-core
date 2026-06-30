@@ -1,5 +1,6 @@
 // Zod-схемы валидации входных данных API.
 import { z } from "zod";
+import { normalizeName } from "./name-case";
 
 export const APPLICANT_STATUSES = ["applied", "withdrawn"] as const;
 
@@ -104,7 +105,14 @@ const birthDateField = z.preprocess(
 
 // Поля, общие для создания и обновления.
 const applicantBase = {
-  fullName: z.string().min(1, "ФИО обязательно").max(200),
+  // ФИО: trim → нормализация регистра (ИВАНОВ → Иванов, оглы/кызы — строчные).
+  fullName: z
+    .string()
+    .trim()
+    .min(1, "ФИО обязательно")
+    .max(200)
+    .transform(normalizeName)
+    .pipe(z.string().min(1, "ФИО обязательно").max(200)),
   programId: z.coerce.number().int().positive("Выберите программу"),
   status: z.enum(APPLICANT_STATUSES).optional(),
   phone: optionalString,

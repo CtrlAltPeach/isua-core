@@ -3,9 +3,9 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (патч 0.18.1 — ветка dev → main)
-> Патч 0.18.1 (2026-06-26): легенда обозначений в таблице абитуриентов (кнопка
-> «Обозначения»), цветовая полировка маркеров (Б/ОК/ОП/П/Д), ВИ-маркер → точка.
+## Текущее состояние (патч 0.18.2 — ветка dev → main)
+> Патч 0.18.2 (2026-06-30): нормализация регистра ФИО (утилита `name-case.ts`,
+> интеграция в Zod-схему, one-time скрипт для существующих записей БД).
 > Итерация 18: дата рождения (`birthDate DATE`, миграция `add_birth_date`) +
 > подытоги/итог в таблице «Конкурс по программам» на дашборде. Тесты 101.
 > Итерация 17: разделение «Доп. баллы / ВИ» (`viScore` 0–300, заменяет ЕГЭ в total).
@@ -73,7 +73,7 @@ src/lib/
   types.ts, store.ts, db.ts, auth.ts, api.ts, http.ts
   validation.ts, history.ts, scoring.ts
   applicant-logic.ts, applicant-ui.ts, applicant-pii.ts
-  crypto.ts, rate-limit.ts, timezone.ts, toast.ts, confirm.ts
+  name-case.ts, crypto.ts, rate-limit.ts, timezone.ts, toast.ts, confirm.ts
   utils.ts (cn)
 
 src/hooks/
@@ -118,7 +118,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-101 тест (vitest: unit + интеграционные API)
+124 теста (vitest: unit + интеграционные API)
 0 ESLint ошибок
 
 ---
