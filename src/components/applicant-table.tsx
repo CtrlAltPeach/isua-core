@@ -46,7 +46,7 @@ import { failingSubjects } from "@/lib/thresholds";
 import { Button, Input, Select, Badge, Card } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
-const PAGE_SIZES = [25, 50, 100];
+const PAGE_SIZES = [25, 50, 100, 0]; // 0 = все записи
 
 type SortKey = "fullName" | "status" | "totalScore" | "createdAt";
 
@@ -906,7 +906,7 @@ export function ApplicantTable({
           >
             {PAGE_SIZES.map((s) => (
               <option key={s} value={s}>
-                {s}
+                {s === 0 ? "Все" : s}
               </option>
             ))}
           </Select>

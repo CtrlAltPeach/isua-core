@@ -28,7 +28,8 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
 
   const page = Math.max(1, Number(sp.get("page")) || 1);
-  const limit = Math.min(100, Math.max(1, Number(sp.get("limit")) || 50));
+  const limitRaw = Number(sp.get("limit")) || 50;
+const limit = limitRaw === 0 ? 0 : Math.min(100, Math.max(1, limitRaw));
   const search = sp.get("search")?.trim();
   const status = sp.get("status") ?? undefined;
   const programId = sp.get("program_id");
@@ -60,8 +61,8 @@ export async function GET(req: NextRequest) {
     prisma.applicant.findMany({
       where,
       orderBy: { [sortBy]: order },
-      skip: (page - 1) * limit,
-      take: limit,
+      skip: limit === 0 ? undefined : (page - 1) * limit,
+      take: limit === 0 ? undefined : limit,
       include: { program: { select: { id: true, name: true } } },
     }),
     prisma.applicant.count({ where }),
