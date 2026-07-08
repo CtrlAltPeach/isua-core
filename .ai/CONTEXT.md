@@ -3,11 +3,12 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (патч 0.18.2 — ветка dev → main)
-> Патч 0.18.2 (2026-06-30): нормализация регистра ФИО (утилита `name-case.ts`,
-> интеграция в Zod-схему, one-time скрипт для существующих записей БД).
-> Итерация 18: дата рождения (`birthDate DATE`, миграция `add_birth_date`) +
-> подытоги/итог в таблице «Конкурс по программам» на дашборде. Тесты 101.
+## Текущее состояние (итерация 19 — ветка dev → main)
+> Итерация 19 (2026-07-09): UX таблицы — сортировка `NULLS LAST` (прочерки в конце),
+> чипы-тогглы фильтрации по маркерам (ОК/ОП/Согл./Док./Платн./Дистант, AND), сброс пароля
+> администратором (`POST /api/users/[id]/reset-password`). Тесты 101 → 135.
+> Патч 0.18.2: нормализация регистра ФИО (`name-case.ts`). Патч 0.18.3: опция «Все» в
+> размере страницы. Итерация 18: дата рождения + подытоги/итог в таблице конкурса.
 > Итерация 17: разделение «Доп. баллы / ВИ» (`viScore` 0–300, заменяет ЕГЭ в total).
 
 ### Технологии (фактические)
@@ -85,7 +86,7 @@ src/hooks/
 POST /api/auth/register, /api/auth/login, /api/auth/logout
 GET  /api/auth/me             POST /api/auth/change-password
 GET  /api/applicants/export   (XLSX: лист данных + лист статистики с формулами; ПДн только admin)
-GET  /api/applicants          (фильтры, поиск, пагинация, сортировка)
+GET  /api/applicants          (фильтры: status/program/search + чипы ok/op/consent/docs/paid/distant; поиск, пагинация, сортировка NULLS LAST)
 POST /api/applicants
 GET  /api/applicants/[id]
 PUT  /api/applicants/[id]     (version-based optimistic lock)
@@ -98,6 +99,7 @@ GET  /api/program-groups      POST /api/program-groups            (admin)
 PUT  /api/program-groups/[id] DELETE /api/program-groups/[id]     (admin, SetNull)
 GET  /api/stats/daily         (byProgram + byGroup с подытогами places/абит/согл/док/платн/дистант/конкурс; согласия сегодня в разрезе программы)
 GET  /api/users               PATCH /api/users/[id] (role)   DELETE /api/users/[id]
+POST /api/users/[id]/reset-password (admin: хеш + tokenVersion++, отзыв сессий)
 GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 ```
 
@@ -108,7 +110,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
    строка-деталь (ПДн/заметка), история (часы), маркеры Б/О(ОК)/П
 3. `/programs`: карточки программ, места, конкурс, средний балл, топ-3
 4. `/statuses`: Kanban, 2 колонки (applied/withdrawn)
-5. `/manage`: группы программ CRUD, программы CRUD + пороги + назначение группы, bulk-delete, UserManager (admin-only)
+5. `/manage`: группы программ CRUD, программы CRUD + пороги + назначение группы, bulk-delete, UserManager (admin-only; сброс пароля — итер. 19)
 6. `/report`: PDF-отчёт (печать браузера)
 
 ### Статистика кода
@@ -118,7 +120,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-124 теста (vitest: unit + интеграционные API)
+124 теста (vitest: unit + интеграционные API; актуально 135 — см. CHANGELOG)
 0 ESLint ошибок
 
 ---

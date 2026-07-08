@@ -1,7 +1,7 @@
 // Управление пользователями (только admin): список, создание, смена роли, удаление.
 "use client";
 import { useCallback, useEffect, useState } from "react";
-import { Plus, Trash2, Loader2, ShieldCheck, User as UserIcon } from "lucide-react";
+import { Plus, Trash2, Loader2, ShieldCheck, User as UserIcon, KeyRound } from "lucide-react";
 import { usersApi, ApiError, type UserRow } from "@/lib/api";
 import { useAuth } from "@/hooks/useAuth";
 import { confirmDialog } from "@/lib/confirm";
@@ -22,6 +22,11 @@ export function UserManager() {
   const [password, setPassword] = useState("");
   const [newRole, setNewRole] = useState<"admin" | "operator">("operator");
   const [busy, setBusy] = useState(false);
+
+  // Модалка сброса пароля (итер. 19).
+  const [resetTarget, setResetTarget] = useState<UserRow | null>(null);
+  const [resetPassword, setResetPassword] = useState("");
+  const [resetBusy, setResetBusy] = useState(false);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -101,6 +106,31 @@ export function UserManager() {
     }
   };
 
+  const openReset = (u: UserRow) => {
+    setResetTarget(u);
+    setResetPassword("");
+  };
+
+  const submitReset = async () => {
+    if (!resetTarget) return;
+    if (resetPassword.length < 8) {
+      toast.error("Пароль минимум 8 символов");
+      return;
+    }
+    setResetBusy(true);
+    try {
+      await usersApi.resetPassword(resetTarget.id, resetPassword);
+      toast.success(`Пароль «${resetTarget.username}» изменён, сеансы отозваны`);
+      setResetTarget(null);
+      setResetPassword("");
+    } catch (e) {
+      const msg = e instanceof ApiError ? e.message : "Ошибка сброса пароля";
+      toast.error(msg);
+    } finally {
+      setResetBusy(false);
+    }
+  };
+
   return (
     <Card className="p-5">
       <div className="mb-4 flex items-center justify-between">
@@ -172,19 +202,28 @@ export function UserManager() {
                         : "—"}
                     </td>
                     <td className="py-2.5 text-right">
-                      <button
-                        onClick={() => remove(u)}
-                        disabled={isMe}
-                        title={isMe ? "Нельзя удалить себя" : "Удалить"}
-                        className={cn(
-                          "inline-flex size-8 items-center justify-center rounded-md",
-                          isMe
-                            ? "cursor-not-allowed text-slate-300"
-                            : "text-slate-400 hover:bg-rose-50 hover:text-rose-600",
-                        )}
-                      >
-                        <Trash2 className="size-4" />
-                      </button>
+                      <div className="inline-flex items-center gap-1">
+                        <button
+                          onClick={() => openReset(u)}
+                          title="Сбросить пароль"
+                          className="inline-flex size-8 items-center justify-center rounded-md text-slate-400 hover:bg-emerald-50 hover:text-emerald-600"
+                        >
+                          <KeyRound className="size-4" />
+                        </button>
+                        <button
+                          onClick={() => remove(u)}
+                          disabled={isMe}
+                          title={isMe ? "Нельзя удалить себя" : "Удалить"}
+                          className={cn(
+                            "inline-flex size-8 items-center justify-center rounded-md",
+                            isMe
+                              ? "cursor-not-allowed text-slate-300"
+                              : "text-slate-400 hover:bg-rose-50 hover:text-rose-600",
+                          )}
+                        >
+                          <Trash2 className="size-4" />
+                        </button>
+                      </div>
                     </td>
                   </tr>
                 );
@@ -248,6 +287,41 @@ export function UserManager() {
               <option value="admin">Админ</option>
             </Select>
           </div>
+        </div>
+      </Modal>
+
+      <Modal
+        open={!!resetTarget}
+        onClose={() => setResetTarget(null)}
+        title={`Сброс пароля: ${resetTarget?.username ?? ""}`}
+        footer={
+          <>
+            <Button
+              variant="secondary"
+              onClick={() => setResetTarget(null)}
+              disabled={resetBusy}
+            >
+              Отмена
+            </Button>
+            <Button onClick={submitReset} disabled={resetBusy}>
+              {resetBusy && <Loader2 className="size-4 animate-spin" />}
+              Сбросить
+            </Button>
+          </>
+        }
+      >
+        <div className="space-y-2">
+          <Label htmlFor="reset-pass">Новый пароль (мин. 8 символов)</Label>
+          <Input
+            id="reset-pass"
+            type="password"
+            value={resetPassword}
+            onChange={(e) => setResetPassword(e.target.value)}
+            autoFocus
+          />
+          <p className="text-sm text-slate-500">
+            Все текущие сеансы пользователя будут завершены.
+          </p>
         </div>
       </Modal>
     </Card>

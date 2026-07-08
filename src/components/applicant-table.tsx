@@ -50,6 +50,17 @@ const PAGE_SIZES = [25, 50, 100, 0]; // 0 = все записи
 
 type SortKey = "fullName" | "status" | "totalScore" | "createdAt";
 
+// Чипы-тогглы фильтрации по маркерам (итер. 19). key = query-параметр бэка.
+// Подписи/цвета согласованы с <Markers> и легендой (0.18.1).
+const FLAG_CHIPS: { key: string; label: string; title: string }[] = [
+  { key: "ok", label: "ОК", title: "Особая квота" },
+  { key: "op", label: "ОП", title: "Особое право" },
+  { key: "consent", label: "Согл.", title: "Есть согласие на зачисление" },
+  { key: "docs", label: "Док.", title: "Документы готовы" },
+  { key: "paid", label: "Платн.", title: "Платное обучение" },
+  { key: "distant", label: "Дистант", title: "Дистанционная форма" },
+];
+
 // align: выравнивание; thClass: ширина/выравнивание ячеек.
 type ColAlign = "left" | "right" | "center";
 
@@ -323,6 +334,13 @@ export function ApplicantTable({
   const [page, setPage] = useState(1);
   const [limit, setLimit] = useState(50);
 
+  // Чипы-тогглы (итер. 19): boolean-маркеры. Комбинируются через AND.
+  const [flags, setFlags] = useState<Record<string, boolean>>({});
+  const toggleFlag = (key: string) => {
+    setFlags((f) => ({ ...f, [key]: !f[key] }));
+    setPage(1);
+  };
+
   // Debounce поиска (300мс).
   const searchTimer = useRef<ReturnType<typeof setTimeout> | null>(null);
   useEffect(() => {
@@ -353,8 +371,15 @@ export function ApplicantTable({
       order,
       page,
       limit,
+      // Активные чипы уходят как ok=1 / op=1 / ... (toQuery отбрасывает false).
+      ok: flags.ok || undefined,
+      op: flags.op || undefined,
+      consent: flags.consent || undefined,
+      docs: flags.docs || undefined,
+      paid: flags.paid || undefined,
+      distant: flags.distant || undefined,
     }),
-    [debouncedSearch, status, programId, sortBy, order, page, limit],
+    [debouncedSearch, status, programId, sortBy, order, page, limit, flags],
   );
 
   // silent=true — фоновое обновление (polling): не показываем спиннер и не
@@ -765,6 +790,21 @@ export function ApplicantTable({
           <HelpCircle className="size-4" />
           Обозначения
         </Button>
+      </div>
+
+      {/* Чипы-тогглы (итер. 19): быстрый отбор по маркерам. AND — должны быть все. */}
+      <div className="flex flex-wrap items-center gap-2">
+        {FLAG_CHIPS.map((c) => (
+          <Button
+            key={c.key}
+            variant={flags[c.key] ? "primary" : "secondary"}
+            size="sm"
+            onClick={() => toggleFlag(c.key)}
+            title={c.title}
+          >
+            {c.label}
+          </Button>
+        ))}
       </div>
 
       {showLegend && <Legend />}

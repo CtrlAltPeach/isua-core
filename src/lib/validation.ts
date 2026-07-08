@@ -73,6 +73,13 @@ export const changePasswordSchema = z.object({
   newPassword: z.string().min(8, "Новый пароль минимум 8 символов").max(100),
 });
 
+// Сброс пароля администратором (итер. 19). Админ не знает текущего пароля
+// пользователя, поэтому проверяется только новый (те же требования, что при
+// регистрации). tokenVersion инкрементится → все сессии целевого юзера отзываются.
+export const adminResetPasswordSchema = z.object({
+  newPassword: z.string().min(8, "Пароль минимум 8 символов").max(100),
+});
+
 // --- Абитуриент ---
 // Пустую строку/null/undefined приводим к null ДО парсинга числа.
 // Иначе z.coerce.number() превратил бы "" и null в 0 (Number("")===0).

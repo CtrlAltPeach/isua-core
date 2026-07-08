@@ -138,6 +138,12 @@ export const usersApi = {
     }),
   remove: (id: number) =>
     request<{ success: boolean }>(`/users/${id}`, { method: "DELETE" }),
+  // Сброс пароля админом (итер. 19): отзывает все сессии целевого юзера.
+  resetPassword: (id: number, newPassword: string) =>
+    request<{ success: boolean }>(`/users/${id}/reset-password`, {
+      method: "POST",
+      body: JSON.stringify({ newPassword }),
+    }),
 };
 
 // --- Applicants ---
@@ -149,13 +155,21 @@ export interface ApplicantFilters {
   order?: "asc" | "desc";
   page?: number;
   limit?: number;
+  // Чипы-тогглы (итер. 19): true = фильтр активен. Комбинируются через AND.
+  ok?: boolean;
+  op?: boolean;
+  consent?: boolean;
+  docs?: boolean;
+  paid?: boolean;
+  distant?: boolean;
 }
 
 // Принимаем любой объект (в т.ч. интерфейсы без индексной сигнатуры).
 function toQuery(params: object): string {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
-    if (v !== undefined && v !== null && v !== "") sp.set(k, String(v));
+    // false отбрасываем: неактивные boolean-чипы не должны уходить в URL.
+    if (v !== undefined && v !== null && v !== "" && v !== false) sp.set(k, String(v));
   }
   const q = sp.toString();
   return q ? `?${q}` : "";
