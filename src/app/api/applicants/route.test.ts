@@ -67,6 +67,34 @@ describe("GET /api/applicants", () => {
     expect(arg.where.status).toBeUndefined();
   });
 
+  it("чипы-маркеры попадают в where как true", async () => {
+    await GET(reqWith("?ok=1&consent=1&docs=1&paid=1&distant=1&op=1"));
+    const arg = findMany.mock.calls[0][0].where;
+    expect(arg.specialQuota).toBe(true);
+    expect(arg.specialRight).toBe(true);
+    expect(arg.consentToEnroll).toBe(true);
+    expect(arg.documentsComplete).toBe(true);
+    expect(arg.isPaid).toBe(true);
+    expect(arg.isDistant).toBe(true);
+  });
+
+  it("несколько чипов комбинируются через AND (все true)", async () => {
+    await GET(reqWith("?consent=1&docs=1"));
+    const arg = findMany.mock.calls[0][0].where;
+    expect(arg.consentToEnroll).toBe(true);
+    expect(arg.documentsComplete).toBe(true);
+    // Неактивные чипы не задают фильтр.
+    expect(arg.specialQuota).toBeUndefined();
+    expect(arg.isPaid).toBeUndefined();
+  });
+
+  it("чип со значением != 1 игнорируется", async () => {
+    await GET(reqWith("?ok=0&consent=true"));
+    const arg = findMany.mock.calls[0][0].where;
+    expect(arg.specialQuota).toBeUndefined();
+    expect(arg.consentToEnroll).toBeUndefined();
+  });
+
   it("пагинация: page=2 limit=25 → skip=25 take=25", async () => {
     await GET(reqWith("?page=2&limit=25"));
     const arg = findMany.mock.calls[0][0];
@@ -81,7 +109,34 @@ describe("GET /api/applicants", () => {
 
   it("неразрешённое поле сортировки откатывается на createdAt", async () => {
     await GET(reqWith("?sort_by=passwordHash"));
-    expect(findMany.mock.calls[0][0].orderBy).toEqual({ createdAt: "desc" });
+    expect(findMany.mock.calls[0][0].orderBy).toEqual([
+      { createdAt: "desc" },
+      { createdAt: "desc" },
+    ]);
+  });
+
+  it("NOT NULL поле сортируется простой формой + тай-брейк по createdAt", async () => {
+    await GET(reqWith("?sort_by=fullName&order=asc"));
+    expect(findMany.mock.calls[0][0].orderBy).toEqual([
+      { fullName: "asc" },
+      { createdAt: "desc" },
+    ]);
+  });
+
+  it("nullable totalScore сортируется с NULLS LAST (прочерки в конце)", async () => {
+    await GET(reqWith("?sort_by=totalScore&order=desc"));
+    expect(findMany.mock.calls[0][0].orderBy).toEqual([
+      { totalScore: { sort: "desc", nulls: "last" } },
+      { createdAt: "desc" },
+    ]);
+  });
+
+  it("totalScore ASC тоже с NULLS LAST", async () => {
+    await GET(reqWith("?sort_by=totalScore&order=asc"));
+    expect(findMany.mock.calls[0][0].orderBy).toEqual([
+      { totalScore: { sort: "asc", nulls: "last" } },
+      { createdAt: "desc" },
+    ]);
   });
 
   it("возвращает items/total/page/limit", async () => {
