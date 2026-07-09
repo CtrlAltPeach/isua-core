@@ -107,6 +107,18 @@ describe("GET /api/applicants", () => {
     expect(findMany.mock.calls[0][0].take).toBe(100);
   });
 
+  it("limit=0 → «Все»: skip/take убираются (без пагинации)", async () => {
+    await GET(reqWith("?limit=0"));
+    const arg = findMany.mock.calls[0][0];
+    expect(arg.skip).toBeUndefined();
+    expect(arg.take).toBeUndefined();
+  });
+
+  it("без limit → дефолт 50", async () => {
+    await GET(reqWith(""));
+    expect(findMany.mock.calls[0][0].take).toBe(50);
+  });
+
   it("неразрешённое поле сортировки откатывается на createdAt", async () => {
     await GET(reqWith("?sort_by=passwordHash"));
     expect(findMany.mock.calls[0][0].orderBy).toEqual([

@@ -3,10 +3,11 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 19 — ветка dev → main)
-> Итерация 19 (2026-07-09): UX таблицы — сортировка `NULLS LAST` (прочерки в конце),
-> чипы-тогглы фильтрации по маркерам (ОК/ОП/Согл./Док./Платн./Дистант, AND), сброс пароля
-> администратором (`POST /api/users/[id]/reset-password`). Тесты 101 → 135.
+## Текущее состояние (патч 0.19.1 — ветка dev → main)
+> Патч 0.19.1 (2026-07-09): баг-фиксы (чипы `true→"1"`, пагинация «Все»/Infinity, `limit=0`
+> подменялся на 50) + метрика «дистант × согласие» (`distantWithConsent` в stats/daily,
+> составная карточка дашборда, XLSX COUNTIFS). Тесты 136 → 143.
+> Итерация 19: UX таблицы — сортировка `NULLS LAST`, чипы-тогглы, сброс пароля админом.
 > Патч 0.18.2: нормализация регистра ФИО (`name-case.ts`). Патч 0.18.3: опция «Все» в
 > размере страницы. Итерация 18: дата рождения + подытоги/итог в таблице конкурса.
 > Итерация 17: разделение «Доп. баллы / ВИ» (`viScore` 0–300, заменяет ЕГЭ в total).
@@ -97,7 +98,7 @@ GET  /api/programs            POST /api/programs   (отдаёт groupId/groupNa
 PUT  /api/programs/[id]       DELETE /api/programs/[id]
 GET  /api/program-groups      POST /api/program-groups            (admin)
 PUT  /api/program-groups/[id] DELETE /api/program-groups/[id]     (admin, SetNull)
-GET  /api/stats/daily         (byProgram + byGroup с подытогами places/абит/согл/док/платн/дистант/конкурс; согласия сегодня в разрезе программы)
+GET  /api/stats/daily         (byProgram + byGroup с подытогами places/абит/согл/док/платн/дистант/distantWithConsent/конкурс; согласия сегодня в разрезе программы)
 GET  /api/users               PATCH /api/users/[id] (role)   DELETE /api/users/[id]
 POST /api/users/[id]/reset-password (admin: хеш + tokenVersion++, отзыв сессий)
 GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
@@ -120,7 +121,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-124 теста (vitest: unit + интеграционные API; актуально 135 — см. CHANGELOG)
+124 теста (vitest: unit + интеграционные API; актуально 143 — см. CHANGELOG)
 0 ESLint ошибок
 
 ---

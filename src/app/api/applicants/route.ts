@@ -32,8 +32,10 @@ export async function GET(req: NextRequest) {
   const sp = req.nextUrl.searchParams;
 
   const page = Math.max(1, Number(sp.get("page")) || 1);
-  const limitRaw = Number(sp.get("limit")) || 50;
-const limit = limitRaw === 0 ? 0 : Math.min(100, Math.max(1, limitRaw));
+  // limit отсутствует → 50; "0" → 0 (опция «Все», без skip/take); NaN → 50.
+  const limitParam = sp.get("limit");
+  const limitRaw = limitParam === null ? 50 : Number(limitParam);
+  const limit = limitRaw === 0 ? 0 : Math.min(100, Math.max(1, limitRaw || 50));
   const search = sp.get("search")?.trim();
   const status = sp.get("status") ?? undefined;
   const programId = sp.get("program_id");

@@ -169,7 +169,9 @@ function toQuery(params: object): string {
   const sp = new URLSearchParams();
   for (const [k, v] of Object.entries(params)) {
     // false отбрасываем: неактивные boolean-чипы не должны уходить в URL.
-    if (v !== undefined && v !== null && v !== "" && v !== false) sp.set(k, String(v));
+    if (v === undefined || v === null || v === "" || v === false) continue;
+    // true → "1" (бэк boolean-чипов ждёт строго ?ok=1).
+    sp.set(k, v === true ? "1" : String(v));
   }
   const q = sp.toString();
   return q ? `?${q}` : "";
@@ -301,6 +303,7 @@ export interface ProgramStatRow {
   withDocuments: number;
   withPaid: number;
   withDistant: number;
+  distantWithConsent: number;
   newToday: number;
   consentGivenToday: number;
   consentWithdrawnToday: number;
@@ -318,6 +321,7 @@ export interface ProgramGroupSubtotal {
   withDocuments: number;
   withPaid: number;
   withDistant: number;
+  distantWithConsent: number;
   newToday: number;
   consentGivenToday: number;
   consentWithdrawnToday: number;
@@ -344,6 +348,7 @@ export interface DailyStats {
   withDocuments: number;
   withPaid: number;
   withDistant: number;
+  distantWithConsent: number;
   consentGivenToday: number;
   consentWithdrawnToday: number;
   totalPlaces: number;
