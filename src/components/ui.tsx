@@ -20,6 +20,20 @@ const buttonSizes: Record<ButtonSize, string> = {
   icon: "size-9 p-0",
 };
 
+// Классы кнопки в виде строки — переиспользовать на <a>, стилизованной как кнопка.
+export function buttonClasses(
+  variant: ButtonVariant = "primary",
+  size: ButtonSize = "md",
+  className?: string,
+) {
+  return cn(
+    "inline-flex items-center justify-center gap-2 rounded-md font-medium transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-emerald-500",
+    buttonVariants[variant],
+    buttonSizes[size],
+    className,
+  );
+}
+
 export function Button({
   variant = "primary",
   size = "md",
