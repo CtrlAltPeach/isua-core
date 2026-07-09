@@ -56,3 +56,5 @@ dev-server.log
 # ai
 .claude
 devtools_why_is_this_network_request_taking_so_long.md
+.ai/MICROSERVICES.md
+.ai/MODULAR_MONOLITH.md

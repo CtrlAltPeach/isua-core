@@ -24,7 +24,7 @@ import {
   type ProgramGroupSubtotal,
 } from "@/lib/api";
 import { useAppStore } from "@/lib/store";
-import { Card, Button } from "@/components/ui";
+import { Card, Button, buttonClasses } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 function MetricCard({
@@ -203,14 +203,17 @@ export function Dashboard() {
       <div className="flex flex-wrap items-center justify-between gap-2">
         <h1 className="text-2xl font-bold text-slate-900">Дашборд</h1>
         <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            onClick={() => window.open("/report", "_blank")}
+          {/* Нативная ссылка вместо window.open — не блокируется попап-блокировщиком,
+              работает «Открыть в новой вкладке» по правому клику. */}
+          <a
+            href="/report"
+            target="_blank"
+            rel="noopener noreferrer"
+            className={buttonClasses("secondary", "sm")}
           >
             <FileDown className="size-4" />
             Отчёт PDF
-          </Button>
+          </a>
           <Button
             variant="secondary"
             size="sm"
