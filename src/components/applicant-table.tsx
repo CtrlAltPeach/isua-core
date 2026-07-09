@@ -429,9 +429,11 @@ export function ApplicantTable({
 
   // Удаление вынесено в отдельный интерфейс (см. бэклог) — из строки убрано.
 
-  const totalPages = Math.max(1, Math.ceil(total / limit));
-  const from = total === 0 ? 0 : (page - 1) * limit + 1;
-  const to = Math.min(page * limit, total);
+  // limit=0 (опция «Все»): всё на одной странице, навигация не нужна.
+  const allMode = limit === 0;
+  const totalPages = allMode ? 1 : Math.max(1, Math.ceil(total / limit));
+  const from = total === 0 ? 0 : allMode ? 1 : (page - 1) * limit + 1;
+  const to = allMode ? total : Math.min(page * limit, total);
 
   const sortIcon = (key: SortKey) => {
     if (sortBy !== key) return <ArrowUpDown className="size-3.5 opacity-40" />;
@@ -951,27 +953,29 @@ export function ApplicantTable({
             ))}
           </Select>
         </div>
-        <div className="flex items-center gap-2">
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page <= 1}
-            onClick={() => setPage((p) => Math.max(1, p - 1))}
-          >
-            <ChevronLeft className="size-4" />
-          </Button>
-          <span>
-            Стр. {page} из {totalPages}
-          </span>
-          <Button
-            variant="secondary"
-            size="sm"
-            disabled={page >= totalPages}
-            onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
-          >
-            <ChevronRight className="size-4" />
-          </Button>
-        </div>
+        {!allMode && (
+          <div className="flex items-center gap-2">
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={page <= 1}
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+            >
+              <ChevronLeft className="size-4" />
+            </Button>
+            <span>
+              Стр. {page} из {totalPages}
+            </span>
+            <Button
+              variant="secondary"
+              size="sm"
+              disabled={page >= totalPages}
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+            >
+              <ChevronRight className="size-4" />
+            </Button>
+          </div>
+        )}
       </div>
     </div>
   );

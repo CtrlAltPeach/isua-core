@@ -289,16 +289,44 @@ export function Dashboard() {
               label="Забрали согласие сегодня"
               value={stats.consentWithdrawnToday}
             />
-            <MetricCard
-              icon={<Laptop className="size-6" />}
-              label="Дистанционно"
-              value={stats.withDistant}
-              hint={
-                stats.totalApplicants > 0
-                  ? `${Math.round((stats.withDistant / stats.totalApplicants) * 100)}% от всех`
-                  : undefined
-              }
-            />
+            {/* Составная карточка «Дистанционно»: всего + разбивка по согласию. */}
+            <Card className="flex items-center gap-4 border-slate-200 bg-white p-5">
+              <div className="flex size-12 shrink-0 items-center justify-center rounded-lg bg-emerald-100 text-emerald-700">
+                <Laptop className="size-6" />
+              </div>
+              <div className="min-w-0">
+                <p className="text-sm text-slate-500">Дистанционно</p>
+                <p className="text-2xl font-bold text-slate-900">
+                  {stats.withDistant}
+                </p>
+                {stats.totalApplicants > 0 && (
+                  <p className="text-xs text-slate-400">
+                    {Math.round(
+                      (stats.withDistant / stats.totalApplicants) * 100,
+                    )}
+                    % от всех
+                  </p>
+                )}
+                {stats.withDistant > 0 && (
+                  <div className="mt-1.5 space-y-0.5 border-t border-slate-100 pt-1.5">
+                    <p className="flex items-center gap-1.5 text-xs">
+                      <span className="size-2 rounded-full bg-emerald-500" />
+                      <span className="text-slate-600">с согл.</span>
+                      <span className="font-semibold text-slate-900">
+                        {stats.distantWithConsent}
+                      </span>
+                    </p>
+                    <p className="flex items-center gap-1.5 text-xs">
+                      <span className="size-2 rounded-full bg-slate-300" />
+                      <span className="text-slate-600">без согл.</span>
+                      <span className="font-semibold text-slate-900">
+                        {stats.withDistant - stats.distantWithConsent}
+                      </span>
+                    </p>
+                  </div>
+                )}
+              </div>
+            </Card>
             {/* Третья строка метрик: заявлений на место */}
             <MetricCard
               icon={<Scale className="size-6" />}
@@ -342,7 +370,10 @@ export function Dashboard() {
                     <th className="px-5 py-2.5 text-right font-medium">
                       Платные
                     </th>
-                    <th className="px-5 py-2.5 text-right font-medium">
+                    <th
+                      className="px-5 py-2.5 text-right font-medium"
+                      title="Дистант: всего / из них с согласием"
+                    >
                       Дистант
                     </th>
                   </tr>
@@ -378,7 +409,12 @@ export function Dashboard() {
                             {g.subtotal.withPaid}
                           </td>
                           <td className="px-5 py-1.5 text-right font-semibold">
-                            {g.subtotal.withDistant}
+                            <span>{g.subtotal.withDistant}</span>
+                            {g.subtotal.withDistant > 0 && (
+                              <span className="block text-xs font-normal text-slate-400">
+                                {g.subtotal.distantWithConsent}/{g.subtotal.withDistant}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       )}
@@ -430,7 +466,12 @@ export function Dashboard() {
                             {p.withPaid}
                           </td>
                           <td className="px-5 py-2.5 text-right text-slate-600">
-                            {p.withDistant}
+                            <span>{p.withDistant}</span>
+                            {p.withDistant > 0 && (
+                              <span className="block text-xs text-slate-400">
+                                {p.distantWithConsent}/{p.withDistant}
+                              </span>
+                            )}
                           </td>
                         </tr>
                       ))}
@@ -458,7 +499,14 @@ export function Dashboard() {
                       {stats.withDocuments}
                     </td>
                     <td className="px-5 py-2.5 text-right">{stats.withPaid}</td>
-                    <td className="px-5 py-2.5 text-right">{stats.withDistant}</td>
+                    <td className="px-5 py-2.5 text-right">
+                      <span>{stats.withDistant}</span>
+                      {stats.withDistant > 0 && (
+                        <span className="block text-xs font-normal text-slate-400">
+                          {stats.distantWithConsent}/{stats.withDistant}
+                        </span>
+                      )}
+                    </td>
                   </tr>
                 </tfoot>
               </table>

@@ -24,6 +24,7 @@ export async function GET(req: NextRequest) {
     withDocuments,
     withPaid,
     withDistant,
+    distantWithConsent,
     newToday,
     consentChangesToday,
     programs,
@@ -34,6 +35,10 @@ export async function GET(req: NextRequest) {
     prisma.applicant.count({ where: { documentsComplete: true } }),
     prisma.applicant.count({ where: { isPaid: true } }),
     prisma.applicant.count({ where: { isDistant: true } }),
+    // Пересечение distant × consent (итер. 19.1): отдельный счётчик.
+    prisma.applicant.count({
+      where: { isDistant: true, consentToEnroll: true },
+    }),
     // Новые заявления за день: созданные в этот день.
     prisma.applicant.count({
       where: { createdAt: { gte: dayStart, lt: dayEnd } },
@@ -161,6 +166,8 @@ export async function GET(req: NextRequest) {
       withDocuments: apps.filter((a) => a.documentsComplete).length,
       withPaid: apps.filter((a) => a.isPaid).length,
       withDistant: apps.filter((a) => a.isDistant).length,
+      // Пересечение: дистант + согласие (итер. 19.1).
+      distantWithConsent: apps.filter((a) => a.isDistant && a.consentToEnroll).length,
       newToday,
       // Нетто-согласия за день по этой программе.
       consentGivenToday: givenByProgram.get(p.id) ?? 0,
@@ -215,6 +222,7 @@ export async function GET(req: NextRequest) {
         withDocuments: s.withDocuments + r.withDocuments,
         withPaid: s.withPaid + r.withPaid,
         withDistant: s.withDistant + r.withDistant,
+        distantWithConsent: s.distantWithConsent + r.distantWithConsent,
         newToday: s.newToday + r.newToday,
         consentGivenToday: s.consentGivenToday + r.consentGivenToday,
         consentWithdrawnToday:
@@ -227,6 +235,7 @@ export async function GET(req: NextRequest) {
         withDocuments: 0,
         withPaid: 0,
         withDistant: 0,
+        distantWithConsent: 0,
         newToday: 0,
         consentGivenToday: 0,
         consentWithdrawnToday: 0,
@@ -256,6 +265,7 @@ export async function GET(req: NextRequest) {
     withDocuments,
     withPaid,
     withDistant,
+    distantWithConsent,
     consentGivenToday,
     consentWithdrawnToday,
     totalPlaces,

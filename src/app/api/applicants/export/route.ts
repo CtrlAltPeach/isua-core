@@ -138,6 +138,7 @@ export async function GET(req: NextRequest) {
   const colScore = "E"; // Балл
   const colConsent = "H"; // Согласие (Да/Нет) — сдвинуто после столбцов ВИ/Доп. баллы
   const colDocs = "I"; // Документы
+  const colDistant = "M"; // Дистант (Да/Нет) — после Платного
 
   const addStat = (label: string, formula: string) => {
     const r = st.addRow({ k: label });
@@ -173,6 +174,30 @@ export async function GET(req: NextRequest) {
     `IF(${n}=0,0,ROUND(COUNTIF('${D}'!${colDocs}2:${colDocs}${dataLast},"Да")/${n}*100,1))`,
   );
 
+  // --- Дистант: всего / с согласием / без / доля (итер. 19.1) ---
+  // COUNTIFS по пересечению колонок Дистант (M) и Согласие (H).
+  st.addRow({});
+  st.addRow({ k: "Дистант" }).font = { bold: true };
+  const distantRange = `'${D}'!${colDistant}2:${colDistant}${dataLast}`;
+  const consentRange = `'${D}'!${colConsent}2:${colConsent}${dataLast}`;
+  // Номера строк этого блока нужны для формулы доли — добавляем по порядку.
+  const rDistantTotal = st.addRow({ k: "Дистанционно всего" });
+  rDistantTotal.getCell(2).value = {
+    formula: `COUNTIF(${distantRange},"Да")`,
+  } as ExcelJS.CellFormulaValue;
+  const rDistantConsent = st.addRow({ k: "Дистант с согласием" });
+  rDistantConsent.getCell(2).value = {
+    formula: `COUNTIFS(${distantRange},"Да",${consentRange},"Да")`,
+  } as ExcelJS.CellFormulaValue;
+  const rDistantNoConsent = st.addRow({ k: "Дистант без согласия" });
+  rDistantNoConsent.getCell(2).value = {
+    formula: `COUNTIFS(${distantRange},"Да",${consentRange},"Нет")`,
+  } as ExcelJS.CellFormulaValue;
+  const rDistantPct = st.addRow({ k: "% дистант с согласием" });
+  rDistantPct.getCell(2).value = {
+    formula: `IF(B${rDistantTotal.number}=0,0,ROUND(B${rDistantConsent.number}/B${rDistantTotal.number}*100,1))`,
+  } as ExcelJS.CellFormulaValue;
+
   // --- Разбивка по программам (на листе «Статистика») ---
   st.addRow({});
   const hdr = st.addRow({ k: "Программа", v: "Абитуриентов" });
@@ -181,7 +206,9 @@ export async function GET(req: NextRequest) {
   st.getCell(`D${hdr.number}`).value = "Конкурс";
   st.getCell(`E${hdr.number}`).value = "Ср. балл";
   st.getCell(`F${hdr.number}`).value = "Группа";
+  st.getCell(`G${hdr.number}`).value = "Дистант с согл.";
   const colProgram = "C"; // Программа на листе данных
+  const progRange = `'${D}'!${colProgram}2:${colProgram}${dataLast}`;
   for (const p of programs) {
     const r = st.addRow({ k: p.name });
     const cntRef = `COUNTIF('${D}'!${colProgram}2:${colProgram}${dataLast},"${p.name}")`;
@@ -197,6 +224,11 @@ export async function GET(req: NextRequest) {
     } as ExcelJS.CellFormulaValue;
     // Группа программы (или «Без группы»).
     r.getCell(6).value = p.programGroup?.name ?? "Без группы";
+    // Дистант с согласием по программе: 3 условия COUNTIFS
+    // (программа + дистант «Да» + согласие «Да»).
+    r.getCell(7).value = {
+      formula: `COUNTIFS(${progRange},"${p.name}",${distantRange},"Да",${consentRange},"Да")`,
+    } as ExcelJS.CellFormulaValue;
   }
 
   const buffer = await wb.xlsx.writeBuffer();

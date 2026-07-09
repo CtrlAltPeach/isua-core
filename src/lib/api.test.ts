@@ -1,6 +1,6 @@
 // Тесты retry/переподключения в клиентской fetch-обёртке (12C).
 import { describe, it, expect, vi, beforeEach, afterEach } from "vitest";
-import { request, ApiError } from "./api";
+import { request, ApiError, applicantsApi } from "./api";
 
 // Удобный конструктор Response-подобного объекта для мока fetch.
 function res(
@@ -108,5 +108,26 @@ describe("api request() — retry/переподключение", () => {
       status: 401,
     });
     expect(fetchMock).toHaveBeenCalledTimes(1);
+  });
+});
+
+describe("applicantsApi.list — сериализация boolean-чипов в query", () => {
+  beforeEach(() => {
+    vi.useRealTimers();
+  });
+  afterEach(() => {
+    vi.restoreAllMocks();
+  });
+
+  it("true → ?ok=1, false/undefined отбрасываются", async () => {
+    const fetchMock = vi.fn().mockResolvedValue(res(200, { items: [], total: 0 }));
+    vi.stubGlobal("fetch", fetchMock);
+    await applicantsApi.list({ ok: true, consent: true, op: false, paid: undefined });
+    const url = fetchMock.mock.calls[0][0] as string;
+    expect(url).toContain("ok=1");
+    expect(url).toContain("consent=1");
+    expect(url).not.toContain("op=");
+    expect(url).not.toContain("paid=");
+    expect(url).not.toContain("op=false");
   });
 });
