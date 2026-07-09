@@ -1,6 +1,6 @@
 {
   "name": "isua-core-v0",
-  "version": "0.18.3",
+  "version": "0.19.2",
   "private": true,
   "scripts": {
     "dev": "next dev",
