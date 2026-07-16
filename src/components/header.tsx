@@ -10,7 +10,6 @@ import {
   LayoutDashboard,
   Users,
   BookOpen,
-  ListChecks,
   Settings,
   MoreHorizontal,
   KeyRound,
@@ -34,7 +33,6 @@ const TABS: Tab[] = [
   { href: "/", label: "Дашборд", icon: LayoutDashboard, primary: true },
   { href: "/applicants", label: "Абитуриенты", icon: Users, primary: true },
   { href: "/programs", label: "Программы", icon: BookOpen, primary: true },
-  { href: "/statuses", label: "Статусы", icon: ListChecks, primary: true },
   { href: "/manage", label: "Управление", icon: Settings, adminOnly: true },
 ];
 

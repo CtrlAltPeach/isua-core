@@ -80,6 +80,17 @@ export async function GET(req: NextRequest) {
       { header: "Прописка", key: "registrationAddress", width: 30 },
     );
   }
+  // Вид экзамена и предметы ВИ — в конце, чтобы не сдвинуть ссылочные колонки
+  // (D=Статус, E=Балл, H/I/M) в формулах листа «Статистика».
+  columns.push(
+    { header: "Вид экзамена", key: "examType", width: 13 },
+    { header: "ВИ: Математика (профиль)", key: "viMathProfile", width: 13 },
+    { header: "ВИ: Русский язык", key: "viRussian", width: 13 },
+    { header: "ВИ: Химия", key: "viChemistry", width: 13 },
+    { header: "ВИ: Физика", key: "viPhysics", width: 13 },
+    { header: "ВИ: Информатика", key: "viInformatics", width: 13 },
+    { header: "ВИ: География", key: "viGeography", width: 13 },
+  );
   ws.columns = columns;
 
   items.forEach((a, i) => {
@@ -110,6 +121,14 @@ export async function GET(req: NextRequest) {
       row.inn = a.inn ?? "";
       row.registrationAddress = a.registrationAddress ?? "";
     }
+    // Вид экзамена и предметы ВИ. Колонка «ВИ» — сводка: общий балл при examType=vi.
+    row.examType = a.examType === "vi" ? "ВИ" : "ЕГЭ";
+    row.viMathProfile = a.viMathProfile ?? "";
+    row.viRussian = a.viRussian ?? "";
+    row.viChemistry = a.viChemistry ?? "";
+    row.viPhysics = a.viPhysics ?? "";
+    row.viInformatics = a.viInformatics ?? "";
+    row.viGeography = a.viGeography ?? "";
     ws.addRow(row);
   });
 

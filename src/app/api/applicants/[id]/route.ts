@@ -8,7 +8,7 @@ import { prisma } from "@/lib/db";
 import { getCurrentUser, requireAdmin } from "@/lib/auth";
 import { ok, fail, unauthorized, forbidden, notFound } from "@/lib/http";
 import { updateApplicantSchema } from "@/lib/validation";
-import { calculateTotalScore, SCORE_FIELDS } from "@/lib/scoring";
+import { calculateTotalScore, SCORE_FIELDS, VI_SCORE_FIELDS } from "@/lib/scoring";
 import { normalizeConsent } from "@/lib/applicant-logic";
 import { buildHistoryEntries } from "@/lib/history";
 import { encrypt, decrypt } from "@/lib/crypto";
@@ -97,6 +97,7 @@ export async function PUT(
     "specialRight",
     "isPaid",
     "isDistant",
+    "examType",
     "birthDate",
     "documentType",
     "citizenship",
@@ -111,6 +112,12 @@ export async function PUT(
     "geography",
     "additionalScores",
     "viScore",
+    "viMathProfile",
+    "viRussian",
+    "viChemistry",
+    "viPhysics",
+    "viInformatics",
+    "viGeography",
     "registrationAddress",
     "inn",
     "snils",
@@ -176,8 +183,10 @@ export async function PUT(
     k in rest ? (rest as Record<string, unknown>)[k as string] : current[k];
   const scoreTouched =
     SCORE_FIELDS.some((f) => f in rest) ||
+    VI_SCORE_FIELDS.some((f) => f in rest) ||
     "additionalScores" in rest ||
-    "viScore" in rest;
+    "viScore" in rest ||
+    "examType" in rest;
   if (scoreTouched) {
     const merged = {
       mathProfile: pick("mathProfile") as number | null,
@@ -189,7 +198,16 @@ export async function PUT(
     };
     const extra = pick("additionalScores") as number | null;
     const vi = pick("viScore") as number | null;
-    updates.totalScore = calculateTotalScore(merged, extra ?? 0, vi);
+    const examType = (pick("examType") as "ege" | "vi") ?? "ege";
+    const viScores = {
+      viMathProfile: pick("viMathProfile") as number | null,
+      viRussian: pick("viRussian") as number | null,
+      viChemistry: pick("viChemistry") as number | null,
+      viPhysics: pick("viPhysics") as number | null,
+      viInformatics: pick("viInformatics") as number | null,
+      viGeography: pick("viGeography") as number | null,
+    };
+    updates.totalScore = calculateTotalScore(merged, extra ?? 0, vi, examType, viScores);
   }
 
   // Согласие: нормализуем по итоговому статусу.

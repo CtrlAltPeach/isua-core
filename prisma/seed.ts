@@ -144,7 +144,7 @@ async function seedApplicants(createdByUserId: number) {
     const status = rnd(STATUSES);
     // Часть абитуриентов поступает по ВИ (вступительные испытания вуза), без ЕГЭ.
     const takesVi = Math.random() < 0.15;
-    // Математика: ЛИБО база, ЛИБО профиль (взаимоисключающи).
+    // Математика: ЛИБО база, ЛИБО профиль (взаимоисключающи) — только в режиме ЕГЭ.
     const takesBase = !takesVi && Math.random() < 0.4;
     const mathBase = takesBase ? 2 + Math.floor(Math.random() * 4) : null; // 2..5
     const scores = takesVi
@@ -164,11 +164,34 @@ async function seedApplicants(createdByUserId: number) {
           informatics: maybe(rndScore(), 0.5),
           geography: maybe(rndScore(), 0.2),
         };
-    // ВИ — целое 120..290 (заменяет сумму ЕГЭ). Доп. баллы — индивидуальные достижения 0..10.
-    const viScore = takesVi ? 120 + Math.floor(Math.random() * 171) : null;
+    // Предметы ВИ (3–6 заполненных, как ЕГЭ). viScore=null — total считается по топ-3 vi.
+    const viScores = takesVi
+      ? {
+          viMathProfile: maybe(rndScore(), 0.9),
+          viRussian: maybe(rndScore(), 0.95),
+          viChemistry: maybe(rndScore(), 0.4),
+          viPhysics: maybe(rndScore(), 0.5),
+          viInformatics: maybe(rndScore(), 0.5),
+          viGeography: maybe(rndScore(), 0.2),
+        }
+      : {
+          viMathProfile: null,
+          viRussian: null,
+          viChemistry: null,
+          viPhysics: null,
+          viInformatics: null,
+          viGeography: null,
+        };
+    const examType = takesVi ? "vi" : "ege";
+    // viScore=null у vi-абитуриентов — total = сумма топ-3 vi-предметов + доп. баллы.
     const additionalScores = Math.random() < 0.3 ? 1 + Math.floor(Math.random() * 10) : 0;
-    // Балл: (ВИ ?? сумма топ-3 предметов ЕГЭ) + доп. баллы (mathBase не входит).
-    const totalScore = calculateTotalScore(scores, additionalScores, viScore);
+    const totalScore = calculateTotalScore(
+      scores,
+      additionalScores,
+      null,
+      examType,
+      viScores,
+    );
 
     // Согласие — у части подавших; забравшие — всегда false.
     const consent = status === "applied" && Math.random() < 0.5;
@@ -191,6 +214,7 @@ async function seedApplicants(createdByUserId: number) {
         specialRight: Math.random() < 0.12,
         isPaid: Math.random() < 0.2,
         isDistant: Math.random() < 0.25,
+        examType,
         documentType: rnd(["diploma", "certificate", null] as const) ?? undefined,
         citizenship: rnd(["Россия", "Россия", "Россия", "Беларусь", "Казахстан"] as const),
         // Персональные данные (паспорт/ИНН/СНИЛС) — ЗАШИФРОВАННЫЕ (как в API).
@@ -202,7 +226,7 @@ async function seedApplicants(createdByUserId: number) {
         mathBase: mathBase ?? undefined,
         ...scores,
         additionalScores,
-        viScore: viScore ?? undefined,
+        ...viScores,
         totalScore,
         notes: rnd(NOTES) ?? undefined,
         createdByUserId,

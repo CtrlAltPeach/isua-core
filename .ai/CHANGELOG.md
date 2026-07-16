@@ -6,6 +6,45 @@
 
 Ветка `dev` (main = стабильный прод, Vercel автодеплоит main).
 
+## Итерация 20 (чистка UI + ВИ по предметам, 2026-07-09) — версия 0.20.0
+
+Тема: две задачи — удаление избыточного экрана «Статусы» и разбор ВИ по предметам.
+
+### 1. Удаление вкладки «Статусы»
+- [x] Экран `/statuses` (Kanban applied/withdrawn) удалён — маршрут `src/app/statuses/`
+  и компонент `statuses-view.tsx`. Навигация (desktop + mobile tab bar) и неиспользуемый
+  импорт `ListChecks` убраны из `header.tsx`. Функционал полностью покрыт фильтрами
+  таблицы `/applicants` и карточкой абитуриента. Отдельных API/тестов для вкладки не было.
+
+### 2. ВИ по предметам (A-bis, гибрид)
+- [x] **Модель (`schema.prisma`):** enum `ExamType { ege vi }`; `Applicant.examType`
+  (default `ege`); 6 колонок vi-предметов (`viMathProfile/viRussian/viChemistry/viPhysics/
+  viInformatics/viGeography`, Int?, 0–100). Поле `viScore` (0–300) сохранено (общий балл).
+  Миграция `add_exam_type_and_vi_subjects` (+ `UPDATE … SET examType='vi' WHERE viScore
+  IS NOT NULL` — существующие ВИ-абитуриенты помечаются корректно).
+- [x] **Расчёт (`scoring.ts`):** `VI_SCORE_FIELDS` (6) + `ExamType` + `EXAM_TYPES`.
+  `calculateTotalScore(applicant, additionalScores, viScore, examType, viScores)`:
+  `examType="vi"` → viScore (если задан) + доп; иначе топ-3 vi-предметов + доп (≥3 нужно);
+  иначе null. `examType="ege"` → прежняя логика топ-3 ЕГЭ (ЕГЭ и ВИ взаимоисключающи).
+- [x] **Валидация:** `examType` (enum) + 6 vi-предметов = `scoreField` (0–100).
+- [x] **API:** POST/PUT принимают `examType`+vi-предметы; пересчёт total по новой
+  сигнатуре; `SIMPLE_FIELDS`/`scoreTouched` расширены (vi-предметы, examType).
+- [x] **Форма (главное):** переключатель «Вид экзамена: ЕГЭ/ВИ» в секции «Баллы». **При
+  переключении данные НЕ стираются** — оба набора баллов хранятся в полях; взаимоисключение
+  resolved при сохранении (payload обнуляет «чужой» набор), как и mathBase/mathProfile.
+  Режим ВИ: общее поле «Балл ВИ» (0–300, необяз.) + сетка 6 vi-предметов; live-пересчёт.
+- [x] **Таблица:** маркер ВИ (точка) теперь по `examType==="vi"` (3 места: строка,
+  мобильная карточка, легенда). В строке-детали — vi-предметы + общий балл ВИ.
+- [x] **Экспорт XLSX:** колонки «Вид экзамена» + 6 vi-предметов добавлены в **конец**
+  (после ПДн) — НЕ сдвигают ссылочные D/E/H/I/M в формулах листа «Статистика». Колонка
+  «ВИ» (F) — сводка.
+- [x] **История/метки:** `examType` + vi-предметы в `LOGGED_FIELDS`; метки в `FIELD_LABELS`
+  («ВИ: …»); `examType` в истории — «ЕГЭ»/«ВИ».
+- [x] **Seed:** 15% vi-абитуриентов (`examType="vi"`, vi-предметы rndScore 0–100,
+  ЕГЭ=null, viScore=null — тестит топ-3 vi-ветку).
+- [x] **Тесты 143 → 147:** блок ВИ в `scoring.test.ts` переписан под гибрид (+4 кейса:
+  vi+viScore, vi+топ-3 vi-предметов, vi приоритет viScore, ege игнор viScore; <3 vi → null).
+
 ## Патч 0.19.2 (ремонт PDF-отчёта: кнопка + визуал + ПДн, 2026-07-09)
 
 ### Починка

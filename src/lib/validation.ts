@@ -133,6 +133,8 @@ const applicantBase = {
   specialRight: z.coerce.boolean().optional(),
   isPaid: z.coerce.boolean().optional(),
   isDistant: z.coerce.boolean().optional(),
+  // Вид экзамена: ege (предметы ЕГЭ) или vi (вступит. испытания вуза).
+  examType: z.enum(["ege", "vi"]).optional(),
   birthDate: birthDateField,
   documentType: z
     .union([z.enum(["diploma", "certificate"]), z.literal(""), z.null()])
@@ -162,6 +164,14 @@ const applicantBase = {
     emptyToNull,
     z.coerce.number().int("Балл — целое число").min(0).max(300, "ВИ не более 300").nullable(),
   ),
+  // Предметы ВИ (те же названия, что ЕГЭ). Используются при examType="vi", если
+  // не задан общий viScore: total = сумма топ-3 vi-предметов + доп. баллы.
+  viMathProfile: scoreField,
+  viRussian: scoreField,
+  viChemistry: scoreField,
+  viPhysics: scoreField,
+  viInformatics: scoreField,
+  viGeography: scoreField,
   registrationAddress: optionalString,
   inn: optionalString,
   snils: optionalString,

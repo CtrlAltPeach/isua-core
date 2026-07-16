@@ -31,12 +31,13 @@ interface FormValues {
   specialRight: boolean;
   isPaid: boolean;
   isDistant: boolean;
+  examType: "ege" | "vi"; // вид экзамена: ЕГЭ / ВИ
   birthDate: string; // "" | YYYY-MM-DD
   documentType: string; // "" | diploma | certificate
   passportSeries: string;
   passportNumber: string;
   citizenship: string;
-  // баллы
+  // баллы ЕГЭ
   mathBase: string;
   mathProfile: string;
   russian: string;
@@ -45,7 +46,14 @@ interface FormValues {
   informatics: string;
   geography: string;
   additionalScores: string;
-  viScore: string;
+  // баллы ВИ
+  viScore: string; // общий балл ВИ (0-300), необязательно
+  viMathProfile: string;
+  viRussian: string;
+  viChemistry: string;
+  viPhysics: string;
+  viInformatics: string;
+  viGeography: string;
   // персональное
   registrationAddress: string;
   inn: string;
@@ -59,6 +67,16 @@ const SCORE_LABELS: { name: keyof FormValues; label: string }[] = [
   { name: "physics", label: "Физика" },
   { name: "informatics", label: "Информатика" },
   { name: "geography", label: "География" },
+];
+
+// Предметы ВИ (те же, что ЕГЭ). Баллы в обоих режимах хранятся в форме и
+// НЕ обнуляются при переключении ЕГЭ/ВИ — взаимоисключение срабатывает при сохранении.
+const VI_LABELS: { name: keyof FormValues; label: string }[] = [
+  { name: "viRussian", label: "Русский язык" },
+  { name: "viChemistry", label: "Химия" },
+  { name: "viPhysics", label: "Физика" },
+  { name: "viInformatics", label: "Информатика" },
+  { name: "viGeography", label: "География" },
 ];
 
 function toStr(v: number | null | undefined): string {
@@ -83,6 +101,7 @@ function defaultsFrom(a: ApplicantWithProgram | null): FormValues {
     specialRight: a?.specialRight ?? false,
     isPaid: a?.isPaid ?? false,
     isDistant: a?.isDistant ?? false,
+    examType: (a?.examType as "ege" | "vi") ?? "ege",
     birthDate: birthDateInputValue(a?.birthDate),
     documentType: a?.documentType ?? "",
     passportSeries: a?.passportSeries ?? "",
@@ -97,6 +116,12 @@ function defaultsFrom(a: ApplicantWithProgram | null): FormValues {
     geography: toStr(a?.geography),
     additionalScores: a?.additionalScores ? String(a.additionalScores) : "",
     viScore: toStr(a?.viScore),
+    viMathProfile: toStr(a?.viMathProfile),
+    viRussian: toStr(a?.viRussian),
+    viChemistry: toStr(a?.viChemistry),
+    viPhysics: toStr(a?.viPhysics),
+    viInformatics: toStr(a?.viInformatics),
+    viGeography: toStr(a?.viGeography),
     registrationAddress: a?.registrationAddress ?? "",
     inn: a?.inn ?? "",
     snils: a?.snils ?? "",
@@ -141,6 +166,10 @@ export function ApplicantFormModal({
   const [programs, setPrograms] = useState<ProgramSummary[]>([]);
   const [serverError, setServerError] = useState<string | null>(null);
 
+  // Значения по умолчанию — мемоизируем один раз (для useForm / reset / useWatch),
+  // чтобы не создавать новый объект на каждом рендере.
+  const defaults = useMemo(() => defaultsFrom(applicant), [applicant]);
+
   const {
     register,
     handleSubmit,
@@ -148,7 +177,7 @@ export function ApplicantFormModal({
     control,
     setValue,
     formState: { isSubmitting },
-  } = useForm<FormValues>({ defaultValues: defaultsFrom(applicant) });
+  } = useForm<FormValues>({ defaultValues: defaults });
 
   // Блокировка записи на время редактирования существующего абитуриента.
   const { lockedBy } = useLock(
@@ -159,11 +188,11 @@ export function ApplicantFormModal({
   // Перезагружаем значения при открытии/смене записи.
   useEffect(() => {
     if (open) {
-      reset(defaultsFrom(applicant));
+      reset(defaults);
       // eslint-disable-next-line react-hooks/set-state-in-effect
       setServerError(null);
     }
-  }, [open, applicant, reset]);
+  }, [open, defaults, reset]);
 
   useEffect(() => {
     programsApi.list().then(setPrograms).catch(() => { });
@@ -173,17 +202,19 @@ export function ApplicantFormModal({
   // Значения всегда заполнены (defaultValues заданы), поэтому приводим к FormValues.
   const watched = useWatch({
     control,
-    defaultValue: defaultsFrom(applicant),
+    defaultValue: defaults,
   }) as FormValues;
 
   // Математика база/профиль взаимоисключающи.
   const mathBaseFilled = watched.mathBase.trim() !== "";
   const mathProfileFilled = watched.mathProfile.trim() !== "";
 
-  // Если задано ВИ — итог считается по ВИ (предметы ЕГЭ не учитываются).
-  const viFilled = watched.viScore.trim() !== "";
+  // Режим ВИ/ЕГЭ (переключатель). Данные в полях НЕ стираются при переключении —
+  // взаимоисключение (какой набор идёт в total) разрешается в calculateTotalScore
+  // по examType, а в payload при сохранении.
+  const isVi = watched.examType === "vi";
 
-  // Live total_score = (ВИ ?? топ-3 предметов) + доп. баллы (база не входит).
+  // Live total_score. По examType: vi → viScore/топ-3 vi-предметов; ege → топ-3 ЕГЭ.
   const liveTotal = useMemo(
     () =>
       calculateTotalScore(
@@ -197,8 +228,18 @@ export function ApplicantFormModal({
         },
         numOrNull(watched.additionalScores) ?? 0,
         numOrNull(watched.viScore),
+        isVi ? "vi" : "ege",
+        {
+          viMathProfile: numOrNull(watched.viMathProfile),
+          viRussian: numOrNull(watched.viRussian),
+          viChemistry: numOrNull(watched.viChemistry),
+          viPhysics: numOrNull(watched.viPhysics),
+          viInformatics: numOrNull(watched.viInformatics),
+          viGeography: numOrNull(watched.viGeography),
+        },
       ),
     [
+      isVi,
       watched.mathProfile,
       watched.russian,
       watched.chemistry,
@@ -207,6 +248,12 @@ export function ApplicantFormModal({
       watched.geography,
       watched.additionalScores,
       watched.viScore,
+      watched.viMathProfile,
+      watched.viRussian,
+      watched.viChemistry,
+      watched.viPhysics,
+      watched.viInformatics,
+      watched.viGeography,
     ],
   );
 
@@ -266,6 +313,11 @@ export function ApplicantFormModal({
     const mathBase = numOrNull(v.mathBase);
     const mathProfile = mathBase != null ? null : numOrNull(v.mathProfile);
 
+    // Взаимоисключение ЕГЭ↔ВИ resolved ЗДЕСЬ (при сохранении), не при переключении:
+    // значения остаются в полях, но в БД уходит только набор активного режима.
+    // При examType=vi отправляем vi-предметы, а ЕГЭ обнуляем; при ege — наоборот.
+    const vi = v.examType === "vi";
+
     const payload: Record<string, unknown> = {
       fullName: v.fullName.trim(),
       programId: Number(v.programId),
@@ -278,20 +330,27 @@ export function ApplicantFormModal({
       specialRight: v.specialRight,
       isPaid: v.isPaid,
       isDistant: v.isDistant,
+      examType: v.examType,
       birthDate: v.birthDate || null,
       documentType: v.documentType || null,
       passportSeries: v.passportSeries.trim() || null,
       passportNumber: v.passportNumber.trim() || null,
       citizenship: v.citizenship.trim() || null,
-      mathBase,
-      mathProfile,
-      russian: numOrNull(v.russian),
-      chemistry: numOrNull(v.chemistry),
-      physics: numOrNull(v.physics),
-      informatics: numOrNull(v.informatics),
-      geography: numOrNull(v.geography),
+      mathBase: vi ? null : mathBase,
+      mathProfile: vi ? null : mathProfile,
+      russian: vi ? null : numOrNull(v.russian),
+      chemistry: vi ? null : numOrNull(v.chemistry),
+      physics: vi ? null : numOrNull(v.physics),
+      informatics: vi ? null : numOrNull(v.informatics),
+      geography: vi ? null : numOrNull(v.geography),
       additionalScores: numOrNull(v.additionalScores) ?? 0,
-      viScore: numOrNull(v.viScore),
+      viScore: vi ? numOrNull(v.viScore) : null,
+      viMathProfile: vi ? numOrNull(v.viMathProfile) : null,
+      viRussian: vi ? numOrNull(v.viRussian) : null,
+      viChemistry: vi ? numOrNull(v.viChemistry) : null,
+      viPhysics: vi ? numOrNull(v.viPhysics) : null,
+      viInformatics: vi ? numOrNull(v.viInformatics) : null,
+      viGeography: vi ? numOrNull(v.viGeography) : null,
       registrationAddress: v.registrationAddress.trim() || null,
       inn: v.inn.trim() || null,
       snils: v.snils.trim() || null,
@@ -480,24 +539,92 @@ export function ApplicantFormModal({
         {/* === Баллы экзаменов === */}
         <Section title="Баллы экзаменов">
           <div>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
-              <div>
-                <Label htmlFor="mathBase">Математика (база)</Label>
-                <Select
-                  id="mathBase"
-                  disabled={mathProfileFilled}
-                  {...register("mathBase")}
+            {/* Переключатель ЕГЭ/ВИ. НЕ обнуляет данные — значения хранятся в полях
+                до сохранения; взаимоисключение разрешается в onSubmit. */}
+            <div className="mb-4 flex items-center gap-2">
+              <Label className="mb-0 text-slate-500">Вид экзамена:</Label>
+              <div className="inline-flex rounded-md border border-slate-200 p-0.5">
+                <button
+                  type="button"
+                  onClick={() =>
+                    setValue("examType", "ege", { shouldDirty: true })
+                  }
+                  className={cn(
+                    "rounded px-3 py-1 text-sm font-medium transition-colors",
+                    !isVi
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50",
+                  )}
                 >
-                  <option value="">—</option>
-                  {[2, 3, 4, 5].map((n) => (
-                    <option key={n} value={n}>
-                      {n}
-                    </option>
-                  ))}
-                </Select>
+                  ЕГЭ
+                </button>
+                <button
+                  type="button"
+                  onClick={() =>
+                    setValue("examType", "vi", { shouldDirty: true })
+                  }
+                  className={cn(
+                    "rounded px-3 py-1 text-sm font-medium transition-colors",
+                    isVi
+                      ? "bg-emerald-600 text-white"
+                      : "text-slate-600 hover:bg-slate-50",
+                  )}
+                >
+                  ВИ
+                </button>
               </div>
-              {scoreInput("mathProfile", "Математика (профиль)", mathBaseFilled)}
-              {SCORE_LABELS.map((s) => scoreInput(s.name, s.label))}
+            </div>
+
+            {/* --- Режим ЕГЭ --- */}
+            {!isVi && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                <div>
+                  <Label htmlFor="mathBase">Математика (база)</Label>
+                  <Select
+                    id="mathBase"
+                    disabled={mathProfileFilled}
+                    {...register("mathBase")}
+                  >
+                    <option value="">—</option>
+                    {[2, 3, 4, 5].map((n) => (
+                      <option key={n} value={n}>
+                        {n}
+                      </option>
+                    ))}
+                  </Select>
+                </div>
+                {scoreInput("mathProfile", "Математика (профиль)", mathBaseFilled)}
+                {SCORE_LABELS.map((s) => scoreInput(s.name, s.label))}
+              </div>
+            )}
+
+            {/* --- Режим ВИ --- */}
+            {isVi && (
+              <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">
+                {scoreInput("viMathProfile", "ВИ: Математика (профиль)")}
+                {VI_LABELS.map((s) => scoreInput(s.name, `ВИ: ${s.label}`))}
+                {/* Общий балл ВИ (0-300) — необязателен; при наличии заменяет
+                    сумму vi-предметов в итоговом балле. */}
+                <div className="sm:col-span-1">
+                  <Label htmlFor="viScore">Общий балл ВИ</Label>
+                  <Input
+                    id="viScore"
+                    type="number"
+                    min={0}
+                    max={300}
+                    step="1"
+                    placeholder="0–300"
+                    onWheel={noWheel}
+                    {...register("viScore")}
+                  />
+                </div>
+              </div>
+            )}
+
+            {/* --- Общие поля (не зависят от режима) --- */}
+            {/* «Доп. баллы» вынесен из условных блоков, чтобы register/id поля
+                формы не монтировались/демонтировались при переключении ЕГЭ/ВИ. */}
+            <div className="mt-4 grid grid-cols-1 gap-4 sm:grid-cols-3">
               <div>
                 <Label htmlFor="additionalScores">Доп. баллы</Label>
                 <Input
@@ -511,21 +638,8 @@ export function ApplicantFormModal({
                   {...register("additionalScores")}
                 />
               </div>
-              <div>
-                <Label htmlFor="viScore">ВИ (вступит. испытания)</Label>
-                <Input
-                  id="viScore"
-                  type="number"
-                  min={0}
-                  max={300}
-                  step="1"
-                  placeholder="0–300"
-                  onWheel={noWheel}
-                  {...register("viScore")}
-                />
-              </div>
             </div>
-            {(mathBaseFilled || mathProfileFilled) && (
+            {(mathBaseFilled || mathProfileFilled) && !isVi && (
               <p className="mt-2 text-xs text-slate-400">
                 Математика: база и профиль взаимоисключаются — заполнено одно,
                 второе заблокировано.
@@ -544,14 +658,18 @@ export function ApplicantFormModal({
                 {liveTotal != null ? liveTotal : "—"}
               </span>
               <span className="ml-2 text-xs text-slate-400">
-                {viFilled
-                  ? "ВИ + доп. баллы (предметы ЕГЭ не учитываются)"
+                {isVi
+                  ? numOrNull(watched.viScore) != null
+                    ? "общий балл ВИ + доп. баллы"
+                    : "сумма 3 лучших предметов ВИ + доп. баллы"
                   : "сумма 3 лучших предметов + доп. баллы (база математики не входит)"}
                 {liveTotal != null && liveTotal > 300 && " · переполнение >300"}
               </span>
             </div>
 
-            {failing.length > 0 && (
+            {/* Пороги проверяются только по ЕГЭ-предметам (thresholds.ts → SCORE_FIELDS);
+                в режиме ВИ они нерелевантны, т.к. предметы ЕГЭ при сохранении обнуляются. */}
+            {failing.length > 0 && !isVi && (
               <div className="mt-3 rounded-md border border-amber-300 bg-amber-50 px-4 py-2 text-sm text-amber-800">
                 <span className="font-semibold">⚠ Ниже минимального порога:</span>{" "}
                 {failing
