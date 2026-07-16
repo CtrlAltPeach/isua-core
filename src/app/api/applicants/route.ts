@@ -126,11 +126,23 @@ export async function POST(req: NextRequest) {
   const mathBase = data.mathBase ?? null;
   const mathProfile = mathBase != null ? null : (data.mathProfile ?? null);
   const additionalScores = data.additionalScores ?? 0;
+  const examType = data.examType ?? "ege";
   const viScore = data.viScore ?? null;
+  // Взаимоисключение ЕГЭ↔ВИ: при examType=vi предметы ЕГЭ не учитываются в total
+  // (расчёт идёт по viScore/предметам ВИ); при examType=ege — наоборот.
   const totalScore = calculateTotalScore(
     { ...data, mathProfile },
     additionalScores,
     viScore,
+    examType,
+    {
+      viMathProfile: data.viMathProfile,
+      viRussian: data.viRussian,
+      viChemistry: data.viChemistry,
+      viPhysics: data.viPhysics,
+      viInformatics: data.viInformatics,
+      viGeography: data.viGeography,
+    },
   );
   const consent = normalizeConsent(status, data.consentToEnroll ?? false);
 
@@ -155,6 +167,7 @@ export async function POST(req: NextRequest) {
       specialRight: data.specialRight ?? false,
       isPaid: data.isPaid ?? false,
       isDistant: data.isDistant ?? false,
+      examType,
       birthDate: data.birthDate ?? null,
       documentType: data.documentType ?? null,
       citizenship: data.citizenship,
@@ -169,6 +182,12 @@ export async function POST(req: NextRequest) {
       geography: data.geography,
       additionalScores,
       viScore,
+      viMathProfile: data.viMathProfile,
+      viRussian: data.viRussian,
+      viChemistry: data.viChemistry,
+      viPhysics: data.viPhysics,
+      viInformatics: data.viInformatics,
+      viGeography: data.viGeography,
       totalScore,
       registrationAddress: data.registrationAddress,
       inn: pii.inn,

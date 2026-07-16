@@ -67,34 +67,66 @@ describe("calculateTotalScore", () => {
   });
 
   describe("ВИ (вступительные испытания)", () => {
-    it("ВИ заменяет сумму ЕГЭ: total = ВИ + доп. баллы", () => {
-      // Предметы ЕГЭ заданы, но игнорируются — берётся ВИ.
+    it("examType=vi + общий viScore: total = viScore + доп. баллы (ЕГЭ игнорируется)", () => {
       expect(
         calculateTotalScore(
           { russian: 90, physics: 80, informatics: 70 },
           5,
           250,
+          "vi",
         ),
       ).toBe(255); // 250 + 5, сумма ЕГЭ (240) не учитывается
     });
 
-    it("ВИ работает без предметов ЕГЭ (поступление без ЕГЭ)", () => {
-      expect(calculateTotalScore({}, 0, 180)).toBe(180);
-      expect(calculateTotalScore({ russian: 50 }, 0, 200)).toBe(200);
+    it("examType=vi без viScore: total = топ-3 vi-предметов + доп. баллы", () => {
+      expect(
+        calculateTotalScore(
+          { russian: 90 },
+          5,
+          null,
+          "vi",
+          { viRussian: 85, viPhysics: 72, viInformatics: 90, viChemistry: 40 },
+        ),
+      ).toBe(252); // топ-3 vi (85+90+72=247) + 5; ЕГЭ и 4-й vi-предмет игнорируются
     });
 
-    it("ВИ = 0 — валидный балл (не путать с null)", () => {
-      expect(calculateTotalScore({}, 3, 0)).toBe(3);
+    it("examType=vi, <3 vi-предметов и без viScore → null", () => {
+      expect(
+        calculateTotalScore({}, 5, null, "vi", { viRussian: 80, viPhysics: 70 }),
+      ).toBeNull();
     });
 
-    it("ВИ null/undefined — расчёт по ЕГЭ (старое поведение)", () => {
+    it("examType=vi без предметов и без viScore → null", () => {
+      expect(calculateTotalScore({}, 5, null, "vi")).toBeNull();
+    });
+
+    it("examType=vi: viScore=0 — валидный балл (не путать с null)", () => {
+      expect(calculateTotalScore({}, 3, 0, "vi")).toBe(3);
+    });
+
+    it("examType=vi: общий viScore приоритетнее vi-предметов", () => {
+      expect(
+        calculateTotalScore(
+          {},
+          0,
+          200,
+          "vi",
+          { viRussian: 100, viPhysics: 100, viInformatics: 100 },
+        ),
+      ).toBe(200); // 300 vi-предметов проигнорированы, взят viScore
+    });
+
+    it("examType=ege игнорирует viScore и vi-предметы", () => {
       const base = { russian: 80, physics: 70, informatics: 60 };
-      expect(calculateTotalScore(base, 0, null)).toBe(210);
-      expect(calculateTotalScore(base, 0, undefined)).toBe(210);
+      expect(calculateTotalScore(base, 0, 250, "ege")).toBe(210); // viScore=250 проигнорирован
+    });
+
+    it("examType=ege: <3 предметов → null (viScore не спасает)", () => {
+      expect(calculateTotalScore({ russian: 80 }, 0, 250, "ege")).toBeNull();
     });
 
     it("ВИ + доп. баллы может превышать 300", () => {
-      expect(calculateTotalScore({}, 10, 300)).toBe(310);
+      expect(calculateTotalScore({}, 10, 300, "vi")).toBe(310);
     });
   });
 });

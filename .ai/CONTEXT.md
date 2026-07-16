@@ -3,14 +3,16 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (патч 0.19.2 — ветка dev → main)
-> Патч 0.19.2 (2026-07-09): ремонт PDF-отчёта — кнопка на дашборде стала нативной
-> `<a target="_blank">` (починен попап-блокировщик), визуал отчёта приведён к дизайн-системе
-> (MetricCard-сетка, Card-секции, цветные бейджи маркеров), убраны ПДн (паспорт),
-> добавлен AuthGuard + обработка ошибок, print-rem 14px + `print-color-adjust: exact`.
-> Патч 0.19.1: баг-фиксы (чипы `true→"1"`, пагинация «Все»/Infinity, `limit=0`
-> подменялся на 50) + метрика «дистант × согласие» (`distantWithConsent` в stats/daily,
-> составная карточка дашборда, XLSX COUNTIFS). Тесты 136 → 143.
+## Текущее состояние (итерация 20 — ветка dev → main)
+> Итерация 20 (2026-07-09): (1) удалена вкладка «Статусы» (`/statuses`, Kanban) —
+> функционал покрыт фильтрами таблицы + карточкой; (2) **ВИ по предметам (гибрид)** —
+> переключатель «Вид экзамена: ЕГЭ/ВИ» в форме; при ВИ балл total считается по общему
+> `viScore` (0–300, обратная совместимость) либо топ-3 vi-предметов + доп.баллы;
+> `examType` enum, 6 колонок vi-предметов, взаимоисключение ЕГЭ↔ВИ при сохранении
+> (данные в форме НЕ стираются при переключении). Маркер ВИ в таблице по `examType`.
+> Тесты 143 → 147.
+> Патч 0.19.2: ремонт PDF-отчёта (кнопка→ссылка, визуал дизайн-системы, ПДн убраны).
+> Патч 0.19.1: баг-фиксы + метрика «дистант × согласие». Тесты 136 → 143.
 > Итерация 19: UX таблицы — сортировка `NULLS LAST`, чипы-тогглы, сброс пароля админом.
 > Патч 0.18.2: нормализация регистра ФИО (`name-case.ts`). Патч 0.18.3: опция «Все» в
 > размере страницы. Итерация 18: дата рождения + подытоги/итог в таблице конкурса.
@@ -45,7 +47,10 @@
 - **Program:** id, name (uniq), places (количество бюджетных мест), minScores (Json?), programGroupId (FK→ProgramGroup, onDelete SetNull), createdAt
 - **Applicant:**
   - Основное: id, fullName, phone?, email?, programId (FK), status (applied|withdrawn), version (optimistic lock)
-  - Экзамены: mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100); additionalScores (доп. баллы 0-10); viScore? (ВИ — вступит. испытания вуза 0-300, если задано — ЗАМЕНЯЕТ сумму ЕГЭ); totalScore (auto: (viScore ?? сумма топ-3 предметов без mathBase) + доп.баллы)
+  - Экзамены: examType (ege|vi, по умолч. ege — определяет источник балла);
+    mathBase (2-5, в балл НЕ входит), mathProfile (0-100), russian, chemistry, physics, informatics, geography (0-100); additionalScores (доп. баллы 0-10);
+    viScore? (общий балл ВИ 0-300), viMathProfile?/viRussian?/viChemistry?/viPhysics?/viInformatics?/viGeography? (предметы ВИ 0-100);
+    totalScore (auto: по examType — ВИ: viScore ?? топ-3 vi-предметов; ЕГЭ: топ-3 предметов без mathBase — + доп.баллы)
   - Согласия: consentToEnroll (bool), documentsComplete (bool); флаги: specialQuota, specialRight, isPaid, isDistant (дистант)
   - Дата рождения: birthDate? (DATE, без времени; не шифруется)
   - Документы: documentType (diploma|certificate), citizenship, passportSeries, passportNumber
@@ -60,7 +65,7 @@
 src/app/
   layout.tsx, page.tsx, globals.css
   login/page.tsx, register/page.tsx
-  applicants/page.tsx, programs/page.tsx, statuses/page.tsx
+  applicants/page.tsx, programs/page.tsx
   api/
     auth/: login, logout, register, me
     applicants/: [id]/route.ts (GET/PUT/DELETE), [id]/history/route.ts
@@ -74,6 +79,7 @@ src/components/
   app-shell.tsx, header.tsx, auth-guard.tsx
   dashboard.tsx, applicant-table.tsx, applicant-form-modal.tsx
   ui.tsx (собственные UI-компоненты)
+  (statuses-view.tsx — удалён в итер. 20; вкладка «Статусы» убрана)
 
 src/lib/
   types.ts, store.ts, db.ts, auth.ts, api.ts, http.ts
@@ -108,15 +114,17 @@ POST /api/users/[id]/reset-password (admin: хеш + tokenVersion++, отзыв 
 GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 ```
 
-### Экраны (6 + авторизация + отчёт)
+### Экраны (5 + авторизация + отчёт)
 0. `/login`, `/register` (перенаправляют на `/` если уже авторизован)
 1. `/` (дашборд): метрики, графики (div-бары), таблица конкурса по программам
 2. `/applicants`: поиск, фильтры, сортировка, пагинация, группировка по дням,
    строка-деталь (ПДн/заметка), история (часы), маркеры Б/О(ОК)/П
 3. `/programs`: карточки программ, места, конкурс, средний балл, топ-3
-4. `/statuses`: Kanban, 2 колонки (applied/withdrawn)
-5. `/manage`: группы программ CRUD, программы CRUD + пороги + назначение группы, bulk-delete, UserManager (admin-only; сброс пароля — итер. 19)
-6. `/report`: PDF-отчёт (печать браузера); AuthGuard + Card-визуал, ПДн убраны (патч 0.19.2)
+4. `/manage`: группы программ CRUD, программы CRUD + пороги + назначение группы, bulk-delete, UserManager (admin-only; сброс пароля — итер. 19)
+5. `/report`: PDF-отчёт (печать браузера); AuthGuard + Card-визуал, ПДн убраны (патч 0.19.2)
+
+> Вкладка «Статусы» (`/statuses`, Kanban applied/withdrawn) удалена в итерации 20 —
+> функционал полностью покрыт фильтрами таблицы `/applicants` и карточкой абитуриента.
 
 ### Статистика кода
 ~5500+ строк кода (без UI и hooks)
@@ -125,7 +133,7 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-124 теста (vitest: unit + интеграционные API; актуально 143 — см. CHANGELOG)
+124 теста (vitest: unit + интеграционные API; актуально 147 — см. CHANGELOG)
 0 ESLint ошибок
 
 ---

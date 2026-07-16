@@ -270,8 +270,30 @@ function ApplicantDetails({ a }: { a: ApplicantWithProgram }) {
       <Detail label="ИНН" value={a.inn} />
       <Detail label="Прописка" value={a.registrationAddress} />
       <Detail label="Email" value={a.email} />
-      {a.viScore != null && (
-        <Detail label="ВИ (вступит. испытания)" value={String(a.viScore)} />
+      {a.examType === "vi" && (
+        <>
+          {a.viScore != null && (
+            <Detail label="ВИ: общий балл" value={String(a.viScore)} />
+          )}
+          {a.viMathProfile != null && (
+            <Detail label="ВИ: Математика (профиль)" value={String(a.viMathProfile)} />
+          )}
+          {a.viRussian != null && (
+            <Detail label="ВИ: Русский язык" value={String(a.viRussian)} />
+          )}
+          {a.viChemistry != null && (
+            <Detail label="ВИ: Химия" value={String(a.viChemistry)} />
+          )}
+          {a.viPhysics != null && (
+            <Detail label="ВИ: Физика" value={String(a.viPhysics)} />
+          )}
+          {a.viInformatics != null && (
+            <Detail label="ВИ: Информатика" value={String(a.viInformatics)} />
+          )}
+          {a.viGeography != null && (
+            <Detail label="ВИ: География" value={String(a.viGeography)} />
+          )}
+        </>
       )}
       {a.additionalScores > 0 && (
         <Detail label="Доп. баллы" value={String(a.additionalScores)} />
@@ -538,7 +560,7 @@ export function ApplicantTable({
                   <AlertTriangle className="size-3.5 text-amber-500" />
                 </span>
               )}
-              {a.viScore != null && (
+              {a.examType === "vi" && (
                 <span
                   title="Балл по вступительным испытаниям (ВИ), не по ЕГЭ"
                   className="inline-block size-2 shrink-0 rounded-full bg-amber-400"
@@ -626,7 +648,7 @@ export function ApplicantTable({
             {failing.length > 0 && (
               <AlertTriangle className="size-3.5 text-amber-500" />
             )}
-            {a.viScore != null && (
+            {a.examType === "vi" && (
               <span
                 title="Балл по вступительным испытаниям (ВИ), не по ЕГЭ"
                 className="inline-block size-2 shrink-0 rounded-full bg-amber-400"

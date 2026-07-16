@@ -24,6 +24,13 @@ enum DocumentType {
   certificate // аттестат
 }
 
+// Вид экзамена: егэ — по предметам ЕГЭ; vi — по вступит. испытаниям вуза (ВИ).
+// examType=vi: балл total считается по viScore/предметам ВИ, ЕГЭ игнорируется.
+enum ExamType {
+  ege
+  vi
+}
+
 // Группа (категория) программ — для группировки в статистике и отчётах.
 // Программы без группы показываются блоком «Без группы».
 model ProgramGroup {
@@ -91,6 +98,9 @@ model Applicant {
   isPaid            Boolean @default(false) // платное обучение
   isDistant         Boolean @default(false) // дистанционное обучение
 
+  // Вид экзамена: ege (по умолчанию) — предметы ЕГЭ; vi — вступит. испытания вуза.
+  examType   ExamType @default(ege)
+
   // Дата рождения (только дата, без времени; хранится как DATE).
   birthDate DateTime? @db.Date
 
@@ -101,6 +111,7 @@ model Applicant {
   passportNumber String? // номер паспорта
 
   // Результаты экзаменов. Баллы — целые (Int), валидация требует .int().
+  // Предметы ЕГЭ (examType=ege): топ-3 + доп.баллы = total.
   mathBase    Int? // оценка 2-5, в рейтинг НЕ входит (взаимоисключающа с mathProfile)
   mathProfile Int? // 0-100
   russian     Int?
@@ -109,10 +120,18 @@ model Applicant {
   informatics Int?
   geography   Int?
   additionalScores Int @default(0) // доп. баллы (индивидуальные достижения, 0-10)
-  // ВИ — вступительные испытания вуза (для поступающих без ЕГЭ). Если задано —
-  // ЗАМЕНЯЕТ сумму предметов ЕГЭ в total (0-300). null = абитуриент сдаёт по ЕГЭ.
+  // ВИ — вступительные испытания вуза (для поступающих без ЕГЭ, examType=vi).
+  // viScore — общий балл ВИ (0-300), при наличии заменяет топ-3 vi-предметов в total.
   viScore     Int?
-  totalScore  Int? // авто: (ВИ ?? сумма топ-3 предметов ЕГЭ без mathBase) + additionalScores
+  // Предметы ВИ (те же названия, что ЕГЭ). При examType=vi и отсутствии viScore —
+  // total = сумма топ-3 vi-предметов + доп.баллы. ЕГЭ при этом игнорируется.
+  viMathProfile Int?
+  viRussian     Int?
+  viChemistry   Int?
+  viPhysics     Int?
+  viInformatics Int?
+  viGeography   Int?
+  totalScore  Int? // авто: по examType (ВИ ?? viScore/топ-3 vi-предметов ИЛИ топ-3 ЕГЭ) + additionalScores
 
   // Персональные данные
   registrationAddress String?

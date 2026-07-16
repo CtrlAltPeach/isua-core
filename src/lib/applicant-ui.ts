@@ -34,6 +34,7 @@ export const FIELD_LABELS: Record<string, string> = {
   specialRight: "Особое право",
   isPaid: "Платное обучение",
   isDistant: "Дистанционное обучение",
+  examType: "Вид экзамена",
   birthDate: "Дата рождения",
   documentType: "Документ об образовании",
   citizenship: "Гражданство",
@@ -47,7 +48,13 @@ export const FIELD_LABELS: Record<string, string> = {
   informatics: "Информатика",
   geography: "География",
   additionalScores: "Доп. баллы",
-  viScore: "ВИ (вступит. испытания)",
+  viScore: "ВИ: общий балл",
+  viMathProfile: "ВИ: Математика (профиль)",
+  viRussian: "ВИ: Русский язык",
+  viChemistry: "ВИ: Химия",
+  viPhysics: "ВИ: Физика",
+  viInformatics: "ВИ: Информатика",
+  viGeography: "ВИ: География",
   registrationAddress: "Прописка",
   inn: "ИНН",
   snils: "СНИЛС",
@@ -68,6 +75,9 @@ export function formatHistoryValue(
   if (value === null || value === "") return "—";
   if (field === "status") {
     return STATUS_FULL_LABEL[value as ApplicantStatus] ?? value;
+  }
+  if (field === "examType") {
+    return value === "vi" ? "ВИ" : value === "ege" ? "ЕГЭ" : value;
   }
   if (field === "birthDate") {
     return formatBirthDate(value);
