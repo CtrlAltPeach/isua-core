@@ -1,16 +1,18 @@
 // Интеграционные тесты GET /api/stats/daily.
 // Проверяем структуру ответа, в т.ч. пересечение distant × consent (итер. 19.1).
+//
+// Итер. 21: маршрут рефакторен — count теперь вызывается только для total и
+// newToday (раньше было 7 count + groupBy). Верхнеуровневые метрики считаются
+// из загруженных applicants программ. Мок упрощён под новую структуру.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const count = vi.fn();
-const groupBy = vi.fn();
 const historyFindMany = vi.fn();
 const programFindMany = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     applicant: {
       count: (...a: unknown[]) => count(...a),
-      groupBy: (...a: unknown[]) => groupBy(...a),
     },
     history: { findMany: (...a: unknown[]) => historyFindMany(...a) },
     program: { findMany: (...a: unknown[]) => programFindMany(...a) },
@@ -36,26 +38,15 @@ describe("GET /api/stats/daily", () => {
     vi.clearAllMocks();
     getCurrentUser.mockResolvedValue({ id: 1, role: "operator" });
 
-    // count вызывается параллельно в Promise.all — определяем результат по where,
-    // а не по порядку вызовов (порядок недетерминирован).
+    // count теперь вызывается только дважды: total (без where) и newToday
+    // (where.createdAt). Различаем по наличию where.createdAt в аргументе.
     count.mockImplementation((arg?: { where?: Record<string, unknown> }) => {
-      const w = arg?.where ?? {};
-      // Пересечение distant × consent — проверяем первым (наиболее специфичное).
-      if (w.isDistant === true && w.consentToEnroll === true) return Promise.resolve(1);
-      if (w.consentToEnroll === true) return Promise.resolve(2); // withConsent
-      if (w.documentsComplete === true) return Promise.resolve(3); // withDocuments
-      if (w.isPaid === true) return Promise.resolve(1); // withPaid
-      if (w.isDistant === true) return Promise.resolve(2); // withDistant
-      if (w.createdAt) return Promise.resolve(0); // newToday
+      if (arg?.where?.createdAt) return Promise.resolve(0); // newToday
       return Promise.resolve(4); // total
     });
-    groupBy.mockResolvedValue([
-      { status: "applied", _count: { _all: 3 } },
-      { status: "withdrawn", _count: { _all: 1 } },
-    ]);
     historyFindMany.mockResolvedValue([]);
     // Две программы; первая — 2 абитуриента (один дистант+согласие, второй обычный);
-    // вторая — 1 дистант без согласия.
+    // вторая — 1 дистант без согласия (платный, withdrawn).
     programFindMany.mockResolvedValue([
       {
         id: 1,
@@ -112,14 +103,26 @@ describe("GET /api/stats/daily", () => {
     expect(g.subtotal.distantWithConsent).toBe(1);
   });
 
-  it("distantWithConsent считается с обоими флагами true (пересечение)", async () => {
-    // Проверяем, что count для distantWithConsent ушёл с where {isDistant,consentToEnroll}.
-    await GET(req());
-    const intersectCall = count.mock.calls.find(
-      (c) =>
-        c[0]?.where?.isDistant === true &&
-        c[0]?.where?.consentToEnroll === true,
+  it("верхнеуровневые метрики считаются из загруженных applicants (без отдельных count)", async () => {
+    // Итер. 21: withConsent/withDocuments/withPaid/applied/withdrawn больше не
+    // запрашиваются отдельными count — они суммируются из byProgram.
+    const res = await GET(req());
+    const body = await res.json();
+    // 1 согласие (Иванов), 1 документ (Иванов), 1 платный (Сидоров).
+    expect(body.withConsent).toBe(1);
+    expect(body.withDocuments).toBe(1);
+    expect(body.withPaid).toBe(1);
+    expect(body.applied).toBe(2); // Иванов + Петров
+    expect(body.withdrawn).toBe(1); // Сидоров
+    // count вызван ровно дважды: total и newToday.
+    expect(count).toHaveBeenCalledTimes(2);
+    // Ни один count не ищет по consentToEnroll/documentsComplete/isPaid — эти
+    // фильтры ушли из запросов.
+    const countWheres = count.mock.calls.map((c) => c[0]?.where).filter(Boolean);
+    expect(countWheres).toEqual(
+      expect.not.arrayContaining([
+        expect.objectContaining({ consentToEnroll: expect.anything() }),
+      ]),
     );
-    expect(intersectCall).toBeDefined();
   });
 });

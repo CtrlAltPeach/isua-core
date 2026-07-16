@@ -6,6 +6,70 @@
 
 Ветка `dev` (main = стабильный прод, Vercel автодеплоит main).
 
+## Итерация 21 (оптимизация stats/daily + разделение /programs, 2026-07-16) — версия 0.21.0
+
+Тема: расследование «медленного `GET /` на проде» → оптимизация тяжёлых API-запросов.
+
+### Расследование бага `GET /` (21.3с, ERR_ABORTED)
+- **Вывод: баг не кодовый.** `next build` подтверждает, что `/` помечен
+  `○ (Static)` — отдаётся с edge CDN как статический HTML-шелл и НЕ попадает в
+  serverless-функцию. 21.3с на статику + Hobby-лимит функции 10с → не мог быть
+  таймаутом функции. Транзиентный edge/CDN-stall или сетевой сбой (Vercel).
+- Корневой `page.tsx` — клиентский компонент; `layout.tsx` лёгкий (шрифты +
+  metadata, без `cookies()`/`headers()`); `middleware.ts` отсутствует.
+- Баг не воспроизводится сейчас; доступ к Vercel-логам отсутствует. Закрыто как
+  платформенное, без кодового фикса.
+
+### Реальная проблема (найдена в коде): жирные API-запросы
+`/api/stats/daily` выполнял **10 запросов к БД** на один вызов: 7 дублирующих
+`count` (consent/documents/paid/distant/distantWithConsent) + `groupBy` по
+статусам + `history.findMany` + `program.findMany` с applicants. При этом
+верхнеуровневые метрики дублировали данные, уже загруженные для `byProgram`.
+Вкладка `/programs` дёргала тот же тяжёлый эндпоинт, хотя использовала только
+`byProgram` (без history и верхнеуровневых метрик).
+
+### 1. Переиспользуемая агрегация (`src/lib/program-stats.ts`, новый)
+- `aggregateProgramsToStats(programs, opts)` — считает по каждой программе все
+  метрики (applicants/competition/avgScore/withConsent/withDocuments/withPaid/
+  withDistant/distantWithConsent/newToday/consentGivenToday/consentWithdrawnToday/
+  consentFillPercent/applied/withdrawn/topApplicants) из уже загруженных
+  applicants — без дополнительных запросов к БД.
+- `groupProgramStats(byProgram, programs)` — группировка программ по группам с
+  подытогами (вынесена из route.ts без изменений логики).
+- Тип `ProgramWithApplicants` — минимальный набор полей для агрегации.
+
+### 2. Рефакторинг `/api/stats/daily` (10 → 4 запроса)
+- Убраны 7 дублирующих `count`-запросов + `groupBy` по статусам. Верхнеуровневые
+  метрики (withConsent/withDocuments/withPaid/withDistant/distantWithConsent/
+  applied/withdrawn) теперь суммируются из `byProgram` — те же данные, что и так
+  загружались для программ.
+- Осталось 4 параллельных запроса в `Promise.all`: `total` (count), `newToday`
+  (count по createdAt), `consentChangesToday` (history), `programs` (с applicants).
+- Структура ответа `DailyStats` **без изменений** — обратная совместимость.
+
+### 3. Новый лёгкий эндпоинт `/api/programs/stats` (1 запрос)
+- `GET /api/programs/stats` — только агрегация программ, без history и без
+  верхнеуровневых метрик дашборда. Возвращает `{ byProgram: ProgramStatRow[] }`.
+- Использует ту же `aggregateProgramsToStats` (без дневного окна → newToday и
+  consentGivenToday/consentWithdrawnToday всегда 0 — вкладке не нужны).
+- `programs-view.tsx` переключён с `statsApi.daily()` на `programsApi.stats()`.
+  Удалены: импорт `useAppStore`/`timezone` (больше не нужен), тип `DailyStats`.
+
+### 4. API-слой (`src/lib/api.ts`)
+- `programsApi.stats()` — обёртка для нового эндпоинта.
+
+### Тесты (147 → 152, +5)
+- `stats/daily/route.test.ts`: моки переписаны под 4-запросную структуру (count
+  только для total и newToday, groupBy убран). Добавлен кейс: верхнеуровневые
+  метрики считаются из загруженных applicants, count не ищет по consent/documents.
+- `programs/stats/route.test.ts` (новый, 5 кейсов): авторизация, структура
+  byProgram с агрегатами, topApplicants, newToday=0, ровно 1 запрос findMany.
+
+### Эффект
+- `/` (дашборд): **10 → 4 запросов** к БД на вызов `/api/stats/daily` (-60%).
+- `/programs`: **10 → 1 запрос** к БД (раньше полный daily, теперь только программы).
+- Билд: `/` и `/programs` остаются `○ (Static)`; новые/изменённые эндпоинты `ƒ (Dynamic)`.
+
 ## Итерация 20 (чистка UI + ВИ по предметам, 2026-07-09) — версия 0.20.0
 
 Тема: две задачи — удаление избыточного экрана «Статусы» и разбор ВИ по предметам.

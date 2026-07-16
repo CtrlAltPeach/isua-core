@@ -3,32 +3,31 @@
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
 import { Loader2, Trophy, ArrowRight, Users } from "lucide-react";
-import { statsApi, type DailyStats, type ProgramStatRow } from "@/lib/api";
-import { useAppStore } from "@/lib/store";
+import { programsApi, type ProgramStatRow } from "@/lib/api";
 import { Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 export function ProgramsView() {
   const router = useRouter();
-  const timezone = useAppStore((s) => s.timezone);
-  const [stats, setStats] = useState<DailyStats | null>(null);
+  const [byProgram, setByProgram] = useState<ProgramStatRow[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setStats(await statsApi.daily(undefined, timezone));
+      const data = await programsApi.stats();
+      setByProgram(data.byProgram);
     } finally {
       setLoading(false);
     }
-  }, [timezone]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
-  if (loading || !stats) {
+  if (loading || !byProgram) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="size-8 animate-spin text-emerald-500" />
@@ -40,7 +39,7 @@ export function ProgramsView() {
     <div>
       <h1 className="mb-4 text-2xl font-bold text-slate-900">Программы</h1>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {stats.byProgram.map((p) => (
+        {byProgram.map((p) => (
           <ProgramCard
             key={p.programId}
             p={p}

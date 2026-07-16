@@ -225,6 +225,11 @@ interface ProgramInput {
 
 export const programsApi = {
   list: () => request<ProgramSummary[]>("/programs"),
+  // Агрегированная статистика по программам для вкладки «Программы».
+  // Лёгкий эндпоинт: 1 запрос к БД, без history и верхнеуровневых метрик
+  // дашборда (итер. 21). Возвращает тот же тип ProgramStatRow[], что и
+  // /api/stats/daily — чтобы карточки программ остались без изменений.
+  stats: () => request<{ byProgram: ProgramStatRow[] }>("/programs/stats"),
   create: (data: ProgramInput) =>
     request<ProgramSummary>("/programs", {
       method: "POST",

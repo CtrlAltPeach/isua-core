@@ -1,10 +1,21 @@
 // GET /api/stats/daily — агрегированная статистика приёмной кампании.
 // query: date=YYYY-MM-DD (по умолчанию сегодня), timezone (по умолчанию Europe/Moscow)
+//
+// Оптимизация (итер. 21): раньше 10 запросов к БД (7 дублирующих count + groupBy +
+// history + programs). Верхнеуровневые метрики (withConsent/withDocuments/withPaid/
+// withDistant/distantWithConsent/applied/withdrawn) теперь считаются из уже
+// загруженных applicants программ — как побочный продукт byProgram, а не отдельными
+// count-запросами. Итог: 4 запроса вместо 10.
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/http";
 import { dayBoundsUTC, todayInTimeZone } from "@/lib/timezone";
+import {
+  aggregateProgramsToStats,
+  groupProgramStats,
+  type ProgramWithApplicants,
+} from "@/lib/program-stats";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
@@ -17,28 +28,8 @@ export async function GET(req: NextRequest) {
   const dateStr = sp.get("date") ?? todayInTimeZone(timezone);
   const [dayStart, dayEnd] = dayBoundsUTC(dateStr, timezone);
 
-  const [
-    total,
-    byStatus,
-    withConsent,
-    withDocuments,
-    withPaid,
-    withDistant,
-    distantWithConsent,
-    newToday,
-    consentChangesToday,
-    programs,
-  ] = await Promise.all([
+  const [total, newToday, consentChangesToday, programs] = await Promise.all([
     prisma.applicant.count(),
-    prisma.applicant.groupBy({ by: ["status"], _count: { _all: true } }),
-    prisma.applicant.count({ where: { consentToEnroll: true } }),
-    prisma.applicant.count({ where: { documentsComplete: true } }),
-    prisma.applicant.count({ where: { isPaid: true } }),
-    prisma.applicant.count({ where: { isDistant: true } }),
-    // Пересечение distant × consent (итер. 19.1): отдельный счётчик.
-    prisma.applicant.count({
-      where: { isDistant: true, consentToEnroll: true },
-    }),
     // Новые заявления за день: созданные в этот день.
     prisma.applicant.count({
       where: { createdAt: { gte: dayStart, lt: dayEnd } },
@@ -61,7 +52,7 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { changedAt: "asc" },
     }),
-    prisma.program.findMany({
+    (prisma.program.findMany({
       orderBy: { id: "asc" },
       include: {
         programGroup: { select: { id: true, name: true, sortOrder: true } },
@@ -78,11 +69,8 @@ export async function GET(req: NextRequest) {
           },
         },
       },
-    }),
+    }) ?? Promise.resolve([])) as Promise<ProgramWithApplicants[]>,
   ]);
-
-  const statusCount = (s: string) =>
-    byStatus.find((g) => g.status === s)?._count._all ?? 0;
 
   // Новые/снятые согласия сегодня — НЕТТО за день, а не сумма переключений.
   // По каждому абитуриенту: состояние на начало дня (oldValue первого изменения)
@@ -125,142 +113,36 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const totalPlaces = programs.reduce((s, p) => s + p.places, 0);
-  const totalApplications = programs.reduce(
-    (s, p) => s + p.applicants.length,
+  const byProgram = aggregateProgramsToStats(programs, {
+    dayStart,
+    dayEnd,
+    givenByProgram,
+    withdrawnByProgram,
+  });
+  const byGroup = groupProgramStats(byProgram, programs);
+
+  // Верхнеуровневые метрики — суммарно из byProgram (раньше были отдельными
+  // count-запросами к БД; это те же данные, что уже загружены для программ).
+  const totalApplications = byProgram.reduce((s, p) => s + p.applicants, 0);
+  const totalPlaces = byProgram.reduce((s, p) => s + p.places, 0);
+  const withConsent = byProgram.reduce((s, p) => s + p.withConsent, 0);
+  const withDocuments = byProgram.reduce((s, p) => s + p.withDocuments, 0);
+  const withPaid = byProgram.reduce((s, p) => s + p.withPaid, 0);
+  const withDistant = byProgram.reduce((s, p) => s + p.withDistant, 0);
+  const distantWithConsent = byProgram.reduce(
+    (s, p) => s + p.distantWithConsent,
     0,
   );
-
-  const byProgram = programs.map((p) => {
-    const apps = p.applicants;
-    const scores = apps
-      .map((a) => a.totalScore)
-      .filter((v): v is number => typeof v === "number");
-    const avgScore =
-      scores.length > 0
-        ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) /
-          100
-        : null;
-    const withConsent = apps.filter((a) => a.consentToEnroll).length;
-    // Новые заявления сегодня на эту программу.
-    const newToday = apps.filter(
-      (a) => a.createdAt >= dayStart && a.createdAt < dayEnd,
-    ).length;
-    // Топ-3 абитуриента по баллу.
-    const topApplicants = apps
-      .filter((a) => typeof a.totalScore === "number")
-      .sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
-      .slice(0, 3)
-      .map((a) => ({ fullName: a.fullName, totalScore: a.totalScore }));
-    return {
-      programId: p.id,
-      program: p.name,
-      groupId: p.programGroup?.id ?? null,
-      groupName: p.programGroup?.name ?? null,
-      places: p.places,
-      applicants: apps.length,
-      competition:
-        p.places > 0 ? Math.round((apps.length / p.places) * 100) / 100 : null,
-      avgScore,
-      withConsent,
-      withDocuments: apps.filter((a) => a.documentsComplete).length,
-      withPaid: apps.filter((a) => a.isPaid).length,
-      withDistant: apps.filter((a) => a.isDistant).length,
-      // Пересечение: дистант + согласие (итер. 19.1).
-      distantWithConsent: apps.filter((a) => a.isDistant && a.consentToEnroll).length,
-      newToday,
-      // Нетто-согласия за день по этой программе.
-      consentGivenToday: givenByProgram.get(p.id) ?? 0,
-      consentWithdrawnToday: withdrawnByProgram.get(p.id) ?? 0,
-      // Укомплектованность бюджетных мест согласиями (%).
-      consentFillPercent:
-        p.places > 0 ? Math.round((withConsent / p.places) * 100) : 0,
-      // Разбивка по статусам.
-      applied: apps.filter((a) => a.status === "applied").length,
-      withdrawn: apps.filter((a) => a.status === "withdrawn").length,
-      topApplicants,
-    };
-  });
-
-  // --- Группировка программ с подытогами ---
-  // Метаданные групп (имя + порядок) из загруженных программ.
-  const groupMeta = new Map<number, { name: string; sortOrder: number }>();
-  for (const p of programs) {
-    if (p.programGroup) {
-      groupMeta.set(p.programGroup.id, {
-        name: p.programGroup.name,
-        sortOrder: p.programGroup.sortOrder,
-      });
-    }
-  }
-  // Раскладываем строки по группам (null = «Без группы»).
-  const rowsByGroup = new Map<number | null, typeof byProgram>();
-  for (const row of byProgram) {
-    const key = row.groupId;
-    if (!rowsByGroup.has(key)) rowsByGroup.set(key, []);
-    rowsByGroup.get(key)!.push(row);
-  }
-  // Порядок: реальные группы по sortOrder (затем имя), «Без группы» — в конце.
-  const realKeys = [...rowsByGroup.keys()]
-    .filter((k): k is number => k !== null)
-    .sort((a, b) => {
-      const A = groupMeta.get(a)!;
-      const B = groupMeta.get(b)!;
-      return A.sortOrder - B.sortOrder || A.name.localeCompare(B.name);
-    });
-  const orderedKeys: (number | null)[] = [
-    ...realKeys,
-    ...(rowsByGroup.has(null) ? [null] : []),
-  ];
-  const byGroup = orderedKeys.map((key) => {
-    const rows = rowsByGroup.get(key)!;
-    const subtotal = rows.reduce(
-      (s, r) => ({
-        places: s.places + r.places,
-        applicants: s.applicants + r.applicants,
-        withConsent: s.withConsent + r.withConsent,
-        withDocuments: s.withDocuments + r.withDocuments,
-        withPaid: s.withPaid + r.withPaid,
-        withDistant: s.withDistant + r.withDistant,
-        distantWithConsent: s.distantWithConsent + r.distantWithConsent,
-        newToday: s.newToday + r.newToday,
-        consentGivenToday: s.consentGivenToday + r.consentGivenToday,
-        consentWithdrawnToday:
-          s.consentWithdrawnToday + r.consentWithdrawnToday,
-      }),
-      {
-        places: 0,
-        applicants: 0,
-        withConsent: 0,
-        withDocuments: 0,
-        withPaid: 0,
-        withDistant: 0,
-        distantWithConsent: 0,
-        newToday: 0,
-        consentGivenToday: 0,
-        consentWithdrawnToday: 0,
-      },
-    );
-    // Конкурс по группе: суммарно абитуриентов на суммарные места.
-    const competition =
-      subtotal.places > 0
-        ? Math.round((subtotal.applicants / subtotal.places) * 100) / 100
-        : null;
-    return {
-      groupId: key,
-      groupName: key === null ? null : groupMeta.get(key)!.name,
-      programs: rows,
-      subtotal: { ...subtotal, competition },
-    };
-  });
+  const applied = byProgram.reduce((s, p) => s + p.applied, 0);
+  const withdrawn = byProgram.reduce((s, p) => s + p.withdrawn, 0);
 
   return ok({
     date: dateStr,
     timezone,
     totalApplicants: total,
     newApplications: newToday,
-    applied: statusCount("applied"),
-    withdrawn: statusCount("withdrawn"),
+    applied,
+    withdrawn,
     withConsent,
     withDocuments,
     withPaid,
