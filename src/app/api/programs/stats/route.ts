@@ -1,42 +1,20 @@
 // GET /api/programs/stats — агрегированная статистика по программам.
-// Лёгкий эндпоинт для вкладки «Программы»: один запрос к БД, без history
-// и без верхнеуровневых метрик дашборда. Использует переиспользуемую агрегацию
-// из lib/program-stats (та же логика, что в /api/stats/daily, но без дневных окон).
+// Лёгкий эндпоинт для вкладки «Программы»: агрегаты считаются на уровне БД
+// (Prisma groupBy/aggregate), без history и без верхнеуровневых метрик дашборда.
+// Итерация 22: раньше один findMany с include:{applicants} грузил все строки
+// абитуриентов; теперь 8 мелких запросов, каждый возвращает O(программ) строк.
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/http";
-import {
-  aggregateProgramsToStats,
-  type ProgramWithApplicants,
-} from "@/lib/program-stats";
+import { loadProgramStats } from "@/lib/program-stats-db";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
   if (!user) return unauthorized();
 
-  const programs = (await prisma.program.findMany({
-    orderBy: { id: "asc" },
-    include: {
-      programGroup: { select: { id: true, name: true, sortOrder: true } },
-      applicants: {
-        select: {
-          fullName: true,
-          status: true,
-          totalScore: true,
-          consentToEnroll: true,
-          documentsComplete: true,
-          isPaid: true,
-          isDistant: true,
-          createdAt: true,
-        },
-      },
-    },
-  })) as ProgramWithApplicants[];
-
-  // newToday/consentGivenToday/consentWithdrawnToday не запрашиваем — вкладке
-  // «Программы» они не нужны (не отображаются). aggregator вернёт для них 0.
-  const byProgram = aggregateProgramsToStats(programs);
+  // Без dayWindow и consentMovement: newToday/consentGiven/consentWithdrawn = 0.
+  const { byProgram } = await loadProgramStats(prisma);
 
   return ok({ byProgram });
 }

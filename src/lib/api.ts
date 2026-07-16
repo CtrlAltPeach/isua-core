@@ -315,7 +315,6 @@ export interface ProgramStatRow {
   consentFillPercent: number;
   applied: number;
   withdrawn: number;
-  topApplicants: { fullName: string; totalScore: number | null }[];
 }
 
 // Подытог по группе программ (суммы по строкам группы).

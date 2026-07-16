@@ -1,18 +1,20 @@
 // Интеграционные тесты GET /api/stats/daily.
 // Проверяем структуру ответа, в т.ч. пересечение distant × consent (итер. 19.1).
 //
-// Итер. 21: маршрут рефакторен — count теперь вызывается только для total и
-// newToday (раньше было 7 count + groupBy). Верхнеуровневые метрики считаются
-// из загруженных applicants программ. Мок упрощён под новую структуру.
+// Итерация 22: агрегаты переведены на БД (groupBy/aggregate). Мок содержит
+// applicant.groupBy (вместо вложенных applicants в program.findMany). count
+// вызывается дважды: total и newToday. Верхнеуровневые метрики суммируются из byProgram.
 import { describe, it, expect, vi, beforeEach } from "vitest";
 
 const count = vi.fn();
 const historyFindMany = vi.fn();
 const programFindMany = vi.fn();
+const applicantGroupBy = vi.fn();
 vi.mock("@/lib/db", () => ({
   prisma: {
     applicant: {
       count: (...a: unknown[]) => count(...a),
+      groupBy: (...a: unknown[]) => applicantGroupBy(...a),
     },
     history: { findMany: (...a: unknown[]) => historyFindMany(...a) },
     program: { findMany: (...a: unknown[]) => programFindMany(...a) },
@@ -26,6 +28,51 @@ vi.mock("@/lib/auth", () => ({
 
 import { GET } from "./route";
 
+// Спецификация данных (как раньше было в applicants, теперь разбито по агрегатам):
+// Программа 1 (мест 5): Иванов 250 applied+consent+docs+distant; Петров 200 applied.
+// Программа 2 (мест 3): Сидоров withdrawn, платный, distant, без consent, без балла.
+function specGroupBy(arg: {
+  by?: string[];
+  where?: Record<string, unknown>;
+  _avg?: unknown;
+}): { programId: number; [k: string]: unknown }[] {
+  // count + avg (без where, с _avg).
+  if (arg._avg) {
+    return [
+      { programId: 1, _count: { _all: 2 }, _avg: { totalScore: 225 } },
+      { programId: 2, _count: { _all: 1 }, _avg: { totalScore: null } },
+    ];
+  }
+  // Разбивка по статусам.
+  if (arg.by?.includes("status")) {
+    return [
+      { programId: 1, status: "applied", _count: { _all: 2 } },
+      { programId: 2, status: "withdrawn", _count: { _all: 1 } },
+    ];
+  }
+  // newToday (where.createdAt).
+  if (arg.where?.createdAt) {
+    return [
+      { programId: 1, _count: { _all: 0 } },
+      { programId: 2, _count: { _all: 0 } },
+    ];
+  }
+  const w = arg.where ?? {};
+  if (w.isDistant && w.consentToEnroll)
+    return [{ programId: 1, _count: { _all: 1 } }]; // Иванов
+  if (w.consentToEnroll)
+    return [{ programId: 1, _count: { _all: 1 } }]; // Иванов
+  if (w.documentsComplete)
+    return [{ programId: 1, _count: { _all: 1 } }]; // Иванов
+  if (w.isPaid) return [{ programId: 2, _count: { _all: 1 } }]; // Сидоров
+  if (w.isDistant)
+    return [
+      { programId: 1, _count: { _all: 1 } }, // Иванов
+      { programId: 2, _count: { _all: 1 } }, // Сидоров
+    ];
+  return [];
+}
+
 function req() {
   const url = new URL("http://localhost/api/stats/daily");
   return { nextUrl: url, method: "GET" } as unknown as Parameters<
@@ -38,36 +85,28 @@ describe("GET /api/stats/daily", () => {
     vi.clearAllMocks();
     getCurrentUser.mockResolvedValue({ id: 1, role: "operator" });
 
-    // count теперь вызывается только дважды: total (без where) и newToday
-    // (where.createdAt). Различаем по наличию where.createdAt в аргументе.
+    // count вызывается дважды: total (без where) и newToday (where.createdAt).
     count.mockImplementation((arg?: { where?: Record<string, unknown> }) => {
       if (arg?.where?.createdAt) return Promise.resolve(0); // newToday
       return Promise.resolve(4); // total
     });
     historyFindMany.mockResolvedValue([]);
-    // Две программы; первая — 2 абитуриента (один дистант+согласие, второй обычный);
-    // вторая — 1 дистант без согласия (платный, withdrawn).
+    // Метаданные программ БЕЗ applicants.
     programFindMany.mockResolvedValue([
       {
         id: 1,
         name: "Программа А",
         places: 5,
         programGroup: { id: 1, name: "Группа 1", sortOrder: 0 },
-        applicants: [
-          { fullName: "Иванов", status: "applied", totalScore: 250, consentToEnroll: true, documentsComplete: true, isPaid: false, isDistant: true, createdAt: new Date("2026-01-01") },
-          { fullName: "Петров", status: "applied", totalScore: 200, consentToEnroll: false, documentsComplete: false, isPaid: false, isDistant: false, createdAt: new Date("2026-01-01") },
-        ],
       },
       {
         id: 2,
         name: "Программа Б",
         places: 3,
         programGroup: { id: 1, name: "Группа 1", sortOrder: 0 },
-        applicants: [
-          { fullName: "Сидоров", status: "withdrawn", totalScore: null, consentToEnroll: false, documentsComplete: false, isPaid: true, isDistant: true, createdAt: new Date("2026-01-01") },
-        ],
       },
     ]);
+    applicantGroupBy.mockImplementation((arg) => Promise.resolve(specGroupBy(arg)));
   });
 
   it("401 без авторизации", async () => {
@@ -103,9 +142,7 @@ describe("GET /api/stats/daily", () => {
     expect(g.subtotal.distantWithConsent).toBe(1);
   });
 
-  it("верхнеуровневые метрики считаются из загруженных applicants (без отдельных count)", async () => {
-    // Итер. 21: withConsent/withDocuments/withPaid/applied/withdrawn больше не
-    // запрашиваются отдельными count — они суммируются из byProgram.
+  it("верхнеуровневые метрики считаются из БД-агрегатов", async () => {
     const res = await GET(req());
     const body = await res.json();
     // 1 согласие (Иванов), 1 документ (Иванов), 1 платный (Сидоров).
@@ -116,13 +153,5 @@ describe("GET /api/stats/daily", () => {
     expect(body.withdrawn).toBe(1); // Сидоров
     // count вызван ровно дважды: total и newToday.
     expect(count).toHaveBeenCalledTimes(2);
-    // Ни один count не ищет по consentToEnroll/documentsComplete/isPaid — эти
-    // фильтры ушли из запросов.
-    const countWheres = count.mock.calls.map((c) => c[0]?.where).filter(Boolean);
-    expect(countWheres).toEqual(
-      expect.not.arrayContaining([
-        expect.objectContaining({ consentToEnroll: expect.anything() }),
-      ]),
-    );
   });
 });

@@ -1,21 +1,18 @@
 // GET /api/stats/daily — агрегированная статистика приёмной кампании.
 // query: date=YYYY-MM-DD (по умолчанию сегодня), timezone (по умолчанию Europe/Moscow)
 //
-// Оптимизация (итер. 21): раньше 10 запросов к БД (7 дублирующих count + groupBy +
-// history + programs). Верхнеуровневые метрики (withConsent/withDocuments/withPaid/
-// withDistant/distantWithConsent/applied/withdrawn) теперь считаются из уже
-// загруженных applicants программ — как побочный продукт byProgram, а не отдельными
-// count-запросами. Итог: 4 запроса вместо 10.
+// Оптимизация (итер. 21): раньше 10 запросов (7 дублирующих count + groupBy +
+// history + programs). Верхнеуровневые метрики считались как побочный продукт
+// загруженных applicants.
+// Итерация 22: агрегаты переведены на БД (groupBy/aggregate) — applicants больше
+// не грузятся в память. Структура: 2 count + 1 history + loadProgramStats
+// (который сам делает Promise.all из ~9 groupBy).
 import type { NextRequest } from "next/server";
 import { prisma } from "@/lib/db";
 import { getCurrentUser } from "@/lib/auth";
 import { ok, unauthorized } from "@/lib/http";
 import { dayBoundsUTC, todayInTimeZone } from "@/lib/timezone";
-import {
-  aggregateProgramsToStats,
-  groupProgramStats,
-  type ProgramWithApplicants,
-} from "@/lib/program-stats";
+import { loadProgramStats } from "@/lib/program-stats-db";
 
 export async function GET(req: NextRequest) {
   const user = await getCurrentUser(req);
@@ -28,7 +25,7 @@ export async function GET(req: NextRequest) {
   const dateStr = sp.get("date") ?? todayInTimeZone(timezone);
   const [dayStart, dayEnd] = dayBoundsUTC(dateStr, timezone);
 
-  const [total, newToday, consentChangesToday, programs] = await Promise.all([
+  const [total, newToday, consentChangesToday] = await Promise.all([
     prisma.applicant.count(),
     // Новые заявления за день: созданные в этот день.
     prisma.applicant.count({
@@ -52,24 +49,6 @@ export async function GET(req: NextRequest) {
       },
       orderBy: { changedAt: "asc" },
     }),
-    (prisma.program.findMany({
-      orderBy: { id: "asc" },
-      include: {
-        programGroup: { select: { id: true, name: true, sortOrder: true } },
-        applicants: {
-          select: {
-            fullName: true,
-            status: true,
-            totalScore: true,
-            consentToEnroll: true,
-            documentsComplete: true,
-            isPaid: true,
-            isDistant: true,
-            createdAt: true,
-          },
-        },
-      },
-    }) ?? Promise.resolve([])) as Promise<ProgramWithApplicants[]>,
   ]);
 
   // Новые/снятые согласия сегодня — НЕТТО за день, а не сумма переключений.
@@ -113,16 +92,17 @@ export async function GET(req: NextRequest) {
     }
   }
 
-  const byProgram = aggregateProgramsToStats(programs, {
-    dayStart,
-    dayEnd,
-    givenByProgram,
-    withdrawnByProgram,
-  });
-  const byGroup = groupProgramStats(byProgram, programs);
+  // includeGroups=true: дашборду нужны подытоги по группам.
+  const { byProgram, byGroup } = await loadProgramStats(
+    prisma,
+    {
+      dayWindow: { start: dayStart, end: dayEnd },
+      consentMovement: { givenByProgram, withdrawnByProgram },
+    },
+    true,
+  );
 
-  // Верхнеуровневые метрики — суммарно из byProgram (раньше были отдельными
-  // count-запросами к БД; это те же данные, что уже загружены для программ).
+  // Верхнеуровневые метрики — суммарно из byProgram.
   const totalApplications = byProgram.reduce((s, p) => s + p.applicants, 0);
   const totalPlaces = byProgram.reduce((s, p) => s + p.places, 0);
   const withConsent = byProgram.reduce((s, p) => s + p.withConsent, 0);

@@ -1,102 +1,86 @@
-// Агрегация статистики по программам — переиспользуется эндпоинтами
+// Сборка статистики по программам из БД-агрегатов — переиспользуется эндпоинтами
 // /api/stats/daily (дашборд) и /api/programs/stats (вкладка «Программы»).
-// Вынесена в lib, чтобы не дублировать логику и не тянуть её в клиентский api.ts.
+//
+// Итерация 22: агрегаты (count/avg) считаются на уровне БД через Prisma
+// groupBy/aggregate (см. program-stats-db.ts), сюда приходят уже готовые Map'ы.
+// Эта функция — чистый мёрджер: метаданные программ + агрегаты → ProgramStatRow[].
 import type {
   ProgramStatRow,
   ProgramGroupStats,
 } from "@/lib/api";
 
-// Минимальный набор полей программы с relation applicants, достаточный для
-// агрегации. Соответствует select, который делают эндпоинты.
-export interface ProgramWithApplicants {
+// Метаданные программы без relation applicants. Соответствует тому, что грузит
+// program.findMany без include.applicants.
+export interface ProgramMeta {
   id: number;
   name: string;
   places: number;
   programGroup: { id: number; name: string; sortOrder: number } | null;
-  applicants: {
-    fullName: string;
-    status: string;
-    totalScore: number | null;
-    consentToEnroll: boolean;
-    documentsComplete: boolean;
-    isPaid: boolean;
-    isDistant: boolean;
-    createdAt: Date;
-  }[];
+}
+
+// Агрегаты из БД по programId. Программы без matching строк дают 0 / null.
+export interface ProgramAggregatesInput {
+  // Счётчик заявок по программе (всего).
+  applicants: Map<number, number>;
+  // Средний балл (null, если нет ни одного totalScore).
+  avgScore: Map<number, number | null>;
+  // Счётчики по флагам.
+  withConsent: Map<number, number>;
+  withDocuments: Map<number, number>;
+  withPaid: Map<number, number>;
+  withDistant: Map<number, number>;
+  // Пересечение: isDistant && consentToEnroll (итер. 19.1).
+  distantWithConsent: Map<number, number>;
+  // Разбивка по статусам.
+  applied: Map<number, number>;
+  withdrawn: Map<number, number>;
+  // Новые за день (только при dayWindow в options).
+  newToday?: Map<number, number>;
 }
 
 export interface ProgramAggregationOptions {
-  // Окно «сегодня» — для newToday (заявления, созданные в этот день).
-  // Если не задано — newToday всегда 0.
-  dayStart?: Date;
-  dayEnd?: Date;
   // Нетто-движение согласий за день по программам (из History).
   givenByProgram?: Map<number, number>;
   withdrawnByProgram?: Map<number, number>;
 }
 
-// Считает по каждой программе: applicants/competition/avgScore/withConsent/
-// withDocuments/withPaid/withDistant/distantWithConsent/newToday/
-// consentGivenToday/consentWithdrawnToday/consentFillPercent/applied/withdrawn/
-// topApplicants. Все агрегаты — из уже загруженных applicants (без доп. запросов).
-export function aggregateProgramsToStats(
-  programs: ProgramWithApplicants[],
+// Чистый мёрджер: по метаданным программ и БД-агрегатам собирает строки статистики.
+// Не делает запросов к БД — все агрегаты уже посчитаны на стороне БД (итер. 22).
+export function aggregateProgramStats(
+  programs: ProgramMeta[],
+  agg: ProgramAggregatesInput,
   options: ProgramAggregationOptions = {},
 ): ProgramStatRow[] {
-  const { dayStart, dayEnd, givenByProgram, withdrawnByProgram } = options;
+  const { givenByProgram, withdrawnByProgram } = options;
   return programs.map((p) => {
-    const apps = p.applicants;
-    const scores = apps
-      .map((a) => a.totalScore)
-      .filter((v): v is number => typeof v === "number");
-    const avgScore =
-      scores.length > 0
-        ? Math.round((scores.reduce((a, b) => a + b, 0) / scores.length) * 100) /
-          100
-        : null;
-    const withConsent = apps.filter((a) => a.consentToEnroll).length;
-    // Новые заявления сегодня на эту программу (только если задано окно дня).
-    const newToday =
-      dayStart && dayEnd
-        ? apps.filter(
-            (a) => a.createdAt >= dayStart && a.createdAt < dayEnd,
-          ).length
-        : 0;
-    // Топ-3 абитуриента по баллу (используется на вкладке «Программы»).
-    const topApplicants = apps
-      .filter((a) => typeof a.totalScore === "number")
-      .sort((a, b) => (b.totalScore ?? 0) - (a.totalScore ?? 0))
-      .slice(0, 3)
-      .map((a) => ({ fullName: a.fullName, totalScore: a.totalScore }));
+    const applicantsCount = agg.applicants.get(p.id) ?? 0;
+    const withConsent = agg.withConsent.get(p.id) ?? 0;
     return {
       programId: p.id,
       program: p.name,
       groupId: p.programGroup?.id ?? null,
       groupName: p.programGroup?.name ?? null,
       places: p.places,
-      applicants: apps.length,
+      applicants: applicantsCount,
       competition:
-        p.places > 0 ? Math.round((apps.length / p.places) * 100) / 100 : null,
-      avgScore,
+        p.places > 0
+          ? Math.round((applicantsCount / p.places) * 100) / 100
+          : null,
+      avgScore: agg.avgScore.get(p.id) ?? null,
       withConsent,
-      withDocuments: apps.filter((a) => a.documentsComplete).length,
-      withPaid: apps.filter((a) => a.isPaid).length,
-      withDistant: apps.filter((a) => a.isDistant).length,
-      // Пересечение: дистант + согласие (итер. 19.1).
-      distantWithConsent: apps.filter(
-        (a) => a.isDistant && a.consentToEnroll,
-      ).length,
-      newToday,
-      // Нетто-согласия за день по этой программе.
+      withDocuments: agg.withDocuments.get(p.id) ?? 0,
+      withPaid: agg.withPaid.get(p.id) ?? 0,
+      withDistant: agg.withDistant.get(p.id) ?? 0,
+      distantWithConsent: agg.distantWithConsent.get(p.id) ?? 0,
+      newToday: agg.newToday?.get(p.id) ?? 0,
+      // Нетто-согласия за день по этой программе (из History).
       consentGivenToday: givenByProgram?.get(p.id) ?? 0,
       consentWithdrawnToday: withdrawnByProgram?.get(p.id) ?? 0,
       // Укомплектованность бюджетных мест согласиями (%).
       consentFillPercent:
         p.places > 0 ? Math.round((withConsent / p.places) * 100) : 0,
-      // Разбивка по статусам.
-      applied: apps.filter((a) => a.status === "applied").length,
-      withdrawn: apps.filter((a) => a.status === "withdrawn").length,
-      topApplicants,
+      applied: agg.applied.get(p.id) ?? 0,
+      withdrawn: agg.withdrawn.get(p.id) ?? 0,
     };
   });
 }
@@ -105,7 +89,7 @@ export function aggregateProgramsToStats(
 // Порядок: реальные группы по sortOrder (затем имя), «Без группы» — в конце.
 export function groupProgramStats(
   byProgram: ProgramStatRow[],
-  programs: ProgramWithApplicants[],
+  programs: ProgramMeta[],
 ): ProgramGroupStats[] {
   // Метаданные групп (имя + порядок) из загруженных программ.
   const groupMeta = new Map<number, { name: string; sortOrder: number }>();

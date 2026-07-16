@@ -6,6 +6,64 @@
 
 Ветка `dev` (main = стабильный прод, Vercel автодеплоит main).
 
+## Итерация 22 (перевод агрегаций на SQL groupBy/aggregate, 2026-07-16) — версия 0.22.0
+
+Тема: агрегаты статистики переведены с загрузки строк в память на вычисление
+на уровне БД (Prisma `groupBy`/`aggregate`). Цель — убрать
+`program.findMany({ include: { applicants } })`, который тащил **все строки**
+абитуриентов в Node-память; запросы теперь возвращают O(программ) строк вместо
+O(абитуриентов). Память и трафик кратно меньше при росте данных.
+
+### 1. Слои агрегации (разделены)
+- **`src/lib/program-stats.ts`** — теперь **чистый мёрджер** без импорта Prisma.
+  `aggregateProgramStats(programs, agg, options)` собирает `ProgramStatRow[]` из
+  метаданных программ (`ProgramMeta`) + Map'ов БД-агрегатов (`ProgramAggregatesInput`).
+  `groupProgramStats(byProgram, programs)` без изменений (тип аргумента → `ProgramMeta[]`).
+  Прежний `ProgramWithApplicants` (с массивом applicants) и `aggregateProgramsToStats`
+  удалены. Расчёт `topApplicants` убран (см. ниже).
+- **`src/lib/program-stats-db.ts`** (новый, server-only) — оркестратор `loadProgramStats(
+  prisma, options, includeGroups)`. Делает один `program.findMany` **без** `applicants`
+  + `Promise.all` из 8 `applicant.groupBy`: count+avg, по статусам, по каждому флагу
+  (consent/documents/paid/distant), пересечение distant×consent, опционально newToday.
+  Каждый результат → в `Map<programId, …>`, потом вызов чистого мёрджера.
+
+### 2. Эндпоинты переведены на БД-агрегаты
+- **`/api/programs/stats`**: было **1** `findMany` (грузил все строки applicants) →
+  стало 8 мелких запросов (1 findMany без applicants + 7 groupBy), каждый O(программ).
+- **`/api/stats/daily`**: 2 `count` + 1 `history.findMany` без изменений; блок
+  `program.findMany({include:{applicants}})` + мёрджер заменён на `loadProgramStats` с
+  `dayWindow` (newToday) и `consentMovement` (нетто-согласия из History). Структура
+  ответа `DailyStats` **без изменений** — обратная совместимость.
+
+### 3. Удаление `topApplicants` (топ-3 по баллу на программу)
+- Поле `topApplicants` из `ProgramStatRow` (`src/lib/api.ts`) убрано — единственная
+  метрика, требовавшая строк (`fullName`), и ради неё грузился весь список. Без неё
+  агрегаты — чистый `groupBy`/`aggregate` без выборки строк.
+- В `src/components/programs-view.tsx` удалён блок «Топ-3 по баллам» + неиспользуемый
+  импорт `Trophy`. Карточка программы: места, чипы статусов, средний балл, конкурс,
+  согласия, кнопка «Все абитуриенты».
+
+### 4. Тесты (152 → 160, +8)
+- **`src/lib/program-stats.test.ts`** (новый, 9 кейсов): unit-тесты чистого мёрджера —
+  ранее `program-stats.ts` покрывался только косвенно. Покрыты edge-cases: `places=0`
+  (competition null, consentFillPercent 0), avgScore null при отсутствии в Map,
+  newToday только из dayWindow-агрегата, consentMovement из options, программа без группы.
+- `programs/stats/route.test.ts`: мок переключён с `include:{applicants}` на
+  `program.findMany` (без applicants) + `applicant.groupBy` (параметризованный по
+  аргументам запроса). Удалён тест `topApplicants`.
+- `stats/daily/route.test.ts`: мок перестроен под БД-агрегаты (`applicant.groupBy`).
+
+### Компромисс архитектуры
+Больше round-trip'ов к БД (1 → 8 на `/programs`), но все параллельны через `Promise.all`
+и каждый идёт по проиндексированному `@@index([programId])`. Выигрыш — в памяти и
+трафике, не в числе запросов. Сырой SQL (`$queryRaw`) сознательно не вводился — стиль
+«чистый Prisma»; при желании свернуть 8 groupBy в один `COUNT(*) FILTER` — в бэклог.
+
+### Не сделано (границы)
+- Без миграции БД / новых индексов (код-only, как итер. 21). Индексы на булевы флаги —
+  в бэклог, если профиль покажет необходимость.
+- Без min/max totalScore, без возврата topApplicants.
+
 ## Итерация 21 (оптимизация stats/daily + разделение /programs, 2026-07-16) — версия 0.21.0
 
 Тема: расследование «медленного `GET /` на проде» → оптимизация тяжёлых API-запросов.

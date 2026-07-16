@@ -2,7 +2,7 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Trophy, ArrowRight, Users } from "lucide-react";
+import { Loader2, ArrowRight, Users } from "lucide-react";
 import { programsApi, type ProgramStatRow } from "@/lib/api";
 import { Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
@@ -109,30 +109,6 @@ function ProgramCard({
           <span className="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-700">
             Дистант: {p.withDistant}
           </span>
-        )}
-      </div>
-
-      {/* Топ-3 по баллам */}
-      <div className="mb-4 flex-1">
-        <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-          <Trophy className="size-3.5 text-amber-500" />
-          Топ-3 по баллам
-        </p>
-        {p.topApplicants.length === 0 ? (
-          <p className="text-sm text-slate-400">— нет баллов —</p>
-        ) : (
-          <ol className="space-y-0.5 text-sm">
-            {p.topApplicants.map((a, i) => (
-              <li key={i} className="flex justify-between">
-                <span className="truncate text-slate-700">
-                  {i + 1}. {a.fullName}
-                </span>
-                <span className="ml-2 shrink-0 font-medium text-slate-900">
-                  {a.totalScore ?? "—"}
-                </span>
-              </li>
-            ))}
-          </ol>
         )}
       </div>
 
