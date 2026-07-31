@@ -2,33 +2,32 @@
 "use client";
 import { useCallback, useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Loader2, Trophy, ArrowRight, Users } from "lucide-react";
-import { statsApi, type DailyStats, type ProgramStatRow } from "@/lib/api";
-import { useAppStore } from "@/lib/store";
+import { Loader2, ArrowRight, Users } from "lucide-react";
+import { programsApi, type ProgramStatRow } from "@/lib/api";
 import { Card, Button } from "@/components/ui";
 import { cn } from "@/lib/utils";
 
 export function ProgramsView() {
   const router = useRouter();
-  const timezone = useAppStore((s) => s.timezone);
-  const [stats, setStats] = useState<DailyStats | null>(null);
+  const [byProgram, setByProgram] = useState<ProgramStatRow[] | null>(null);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      setStats(await statsApi.daily(undefined, timezone));
+      const data = await programsApi.stats();
+      setByProgram(data.byProgram);
     } finally {
       setLoading(false);
     }
-  }, [timezone]);
+  }, []);
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     void load();
   }, [load]);
 
-  if (loading || !stats) {
+  if (loading || !byProgram) {
     return (
       <div className="flex justify-center py-20">
         <Loader2 className="size-8 animate-spin text-emerald-500" />
@@ -40,7 +39,7 @@ export function ProgramsView() {
     <div>
       <h1 className="mb-4 text-2xl font-bold text-slate-900">Программы</h1>
       <div className="grid grid-cols-1 gap-5 md:grid-cols-2 xl:grid-cols-3">
-        {stats.byProgram.map((p) => (
+        {byProgram.map((p) => (
           <ProgramCard
             key={p.programId}
             p={p}
@@ -110,30 +109,6 @@ function ProgramCard({
           <span className="rounded-full bg-sky-100 px-2.5 py-0.5 font-medium text-sky-700">
             Дистант: {p.withDistant}
           </span>
-        )}
-      </div>
-
-      {/* Топ-3 по баллам */}
-      <div className="mb-4 flex-1">
-        <p className="mb-1 flex items-center gap-1.5 text-xs font-semibold text-slate-500">
-          <Trophy className="size-3.5 text-amber-500" />
-          Топ-3 по баллам
-        </p>
-        {p.topApplicants.length === 0 ? (
-          <p className="text-sm text-slate-400">— нет баллов —</p>
-        ) : (
-          <ol className="space-y-0.5 text-sm">
-            {p.topApplicants.map((a, i) => (
-              <li key={i} className="flex justify-between">
-                <span className="truncate text-slate-700">
-                  {i + 1}. {a.fullName}
-                </span>
-                <span className="ml-2 shrink-0 font-medium text-slate-900">
-                  {a.totalScore ?? "—"}
-                </span>
-              </li>
-            ))}
-          </ol>
         )}
       </div>
 

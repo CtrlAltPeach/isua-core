@@ -208,6 +208,8 @@
 | Метрика «дистант × согласие» | ✅ | 0.19.1 | distantWithConsent в stats/daily; карточка + XLSX COUNTIFS; тесты 136→143 |
 | Удаление вкладки «Статусы» | ✅ | 20 | маршрут /statuses + statuses-view.ts; навигация убрана; покрыто фильтрами таблицы |
 | ВИ по предметам (гибрид, A-bis) | ✅ | 20 | examType enum + 6 vi-предметов; переключатель ЕГЭ/ВИ (без обнуления); viScore ?? топ-3 vi + доп; взаимоисключение при сохранении; тесты 143→147 |
+| Оптимизация stats/daily + разделение /programs | ✅ | 21 | расследование «медленного /» (вывод: `/` static, не кодовый); stats/daily 10→4 запроса (метрики из загруженных applicants); новый лёгкий /api/programs/stats (1 запрос) для вкладки «Программы»; агрегация вынесена в lib/program-stats.ts; тесты 147→152 |
+| Агрегации на SQL groupBy/aggregate (БД вместо строк в памяти) | ✅ | 22 | program.findMany({include:{applicants}}) → loadProgramStats: 1 findMany без applicants + 8 applicant.groupBy (count/avg/флаги/статусы/newToday); чистый мёрджер program-stats.ts + оркестратор program-stats-db.ts; убран topApplicants (единственная метрика строк); тесты 152→160 |
 
 ---
 

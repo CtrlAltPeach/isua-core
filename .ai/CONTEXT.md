@@ -3,7 +3,22 @@
 ## Проект
 Веб-приложение для учёта абитуриентов в приёмной комиссии вуза. Next.js 16, TypeScript, PostgreSQL, Prisma, React.
 
-## Текущее состояние (итерация 20 — ветка dev → main)
+## Текущее состояние (итерация 22 — ветка dev → main)
+> Итерация 22 (2026-07-16): агрегаты статистики переведены с загрузки строк в память
+> на вычисление на уровне БД (Prisma `groupBy`/`aggregate`). Убран
+> `program.findMany({ include: { applicants } })`, тащивший все строки абитуриентов
+> в Node-память. Новый оркестратор `src/lib/program-stats-db.ts` (`loadProgramStats`):
+> 1 `program.findMany` без applicants + `Promise.all` из 8 `applicant.groupBy`
+> (count/avg, по статусам, по каждому флагу, distant×consent, опц. newToday) — каждый
+> возвращает O(программ) строк. `src/lib/program-stats.ts` стал чистым мёрджером
+> (без Prisma). Убрана метрика `topApplicants` (топ-3 по баллу — единственное, что
+> требовало строк; ради неё грузился весь список) + блок «Топ-3» в UI. Тесты 152 → 160.
+> Итерация 21 (2026-07-16): расследование «медленного `GET /`» (вывод: не кодовый —
+> `/` рендерится статически `○ (Static)`, 21.3с = edge/CDN-stall) + оптимизация жирных
+> API-запросов: `/api/stats/daily` 10→4 запроса (убраны дублирующие count, метрики
+> считаются из загруженных applicants); новый лёгкий `/api/programs/stats` (1 запрос)
+> для вкладки «Программы» — раньше она звала полный daily. Переиспользуемая агрегация
+> вынесена в `src/lib/program-stats.ts`. Тесты 147 → 152.
 > Итерация 20 (2026-07-09): (1) удалена вкладка «Статусы» (`/statuses`, Kanban) —
 > функционал покрыт фильтрами таблицы + карточкой; (2) **ВИ по предметам (гибрид)** —
 > переключатель «Вид экзамена: ЕГЭ/ВИ» в форме; при ВИ балл total считается по общему
@@ -84,6 +99,8 @@ src/components/
 src/lib/
   types.ts, store.ts, db.ts, auth.ts, api.ts, http.ts
   validation.ts, history.ts, scoring.ts
+  program-stats.ts (чистый мёрджер: ProgramMeta + БД-агрегаты → ProgramStatRow[])
+  program-stats-db.ts (server-only оркестратор: program.findMany + 8 applicant.groupBy)
   applicant-logic.ts, applicant-ui.ts, applicant-pii.ts
   name-case.ts, crypto.ts, rate-limit.ts, timezone.ts, toast.ts, confirm.ts
   utils.ts (cn)
@@ -105,6 +122,7 @@ DELETE /api/applicants/[id]
 GET  /api/applicants/[id]/history
 POST /api/applicants/bulk-delete
 GET  /api/programs            POST /api/programs   (отдаёт groupId/groupName, принимает programGroupId)
+GET  /api/programs/stats      (агрегаты по программам через БД groupBy; без history — для вкладки «Программы»)
 PUT  /api/programs/[id]       DELETE /api/programs/[id]
 GET  /api/program-groups      POST /api/program-groups            (admin)
 PUT  /api/program-groups/[id] DELETE /api/program-groups/[id]     (admin, SetNull)
@@ -128,12 +146,12 @@ GET  /api/locks/[id]          POST /api/locks/[id]/heartbeat
 
 ### Статистика кода
 ~5500+ строк кода (без UI и hooks)
-15+ API endpoints
+15+ API endpoints (16+ с /api/programs/stats)
 8 основных компонентов
 6 моделей БД
 15+ TypeScript интерфейсов
 3 хука
-124 теста (vitest: unit + интеграционные API; актуально 147 — см. CHANGELOG)
+152 теста → 160 тестов (витест: unit + интеграционные API; актуально — см. CHANGELOG)
 0 ESLint ошибок
 
 ---
