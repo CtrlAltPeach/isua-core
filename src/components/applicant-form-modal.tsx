@@ -492,8 +492,8 @@ export function ApplicantFormModal({
                   ? undefined
                   : "Недоступно при статусе «Забрал заявление»",
               )}
-              {checkbox("specialQuota", "Особая квота")}
-              {checkbox("specialRight", "Особое право")}
+              {checkbox("specialQuota", "Отдельная квота")}
+              {checkbox("specialRight", "Особая квота/право")}
               {checkbox("isPaid", "Платное обучение")}
               {checkbox("isDistant", "Дистант")}
             </div>

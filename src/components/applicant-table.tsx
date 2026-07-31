@@ -53,8 +53,8 @@ type SortKey = "fullName" | "status" | "totalScore" | "createdAt";
 // Чипы-тогглы фильтрации по маркерам (итер. 19). key = query-параметр бэка.
 // Подписи/цвета согласованы с <Markers> и легендой (0.18.1).
 const FLAG_CHIPS: { key: string; label: string; title: string }[] = [
-  { key: "ok", label: "ОК", title: "Особая квота" },
-  { key: "op", label: "ОП", title: "Особое право" },
+  { key: "ok", label: "ОК", title: "Отдельная квота" },
+  { key: "op", label: "ОКП", title: "Особая квота/право" },
   { key: "consent", label: "Согл.", title: "Есть согласие на зачисление" },
   { key: "docs", label: "Док.", title: "Документы готовы" },
   { key: "paid", label: "Платн.", title: "Платное обучение" },
@@ -111,7 +111,7 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
       )}
       {a.specialQuota && (
         <span
-          title="Особая квота"
+          title="Отдельная квота"
           className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700"
         >
           ОК
@@ -119,10 +119,10 @@ function Markers({ a }: { a: ApplicantWithProgram }) {
       )}
       {a.specialRight && (
         <span
-          title="Особое право"
+          title="Особая квота/право"
           className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700"
         >
-          ОП
+          ОКП
         </span>
       )}
       {a.isPaid && (
@@ -173,15 +173,15 @@ function Legend() {
           ОК
         </span>
       ),
-      text: "Особая квота",
+      text: "Отдельная квота",
     },
     {
       badge: (
         <span className="inline-flex h-5 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700">
-          ОП
+          ОКП
         </span>
       ),
-      text: "Особое право",
+      text: "Особая квота/право",
     },
     {
       badge: (

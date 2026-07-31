@@ -83,7 +83,7 @@ function ReportMarkers({ a }: { a: ApplicantWithProgram }) {
       )}
       {a.specialQuota && (
         <span
-          title="Особая квота"
+          title="Отдельная квота"
           className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700"
         >
           ОК
@@ -91,10 +91,10 @@ function ReportMarkers({ a }: { a: ApplicantWithProgram }) {
       )}
       {a.specialRight && (
         <span
-          title="Особое право"
+          title="Особая квота/право"
           className="inline-flex h-5 shrink-0 items-center justify-center rounded bg-amber-50 px-1 text-xs font-bold text-amber-700"
         >
-          ОП
+          ОКП
         </span>
       )}
       {a.isPaid && (
