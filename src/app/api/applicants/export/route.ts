@@ -80,10 +80,17 @@ export async function GET(req: NextRequest) {
       { header: "Прописка", key: "registrationAddress", width: 30 },
     );
   }
-  // Вид экзамена и предметы ВИ — в конце, чтобы не сдвинуть ссылочные колонки
+  // Вид экзамена, предметы ЕГЭ и ВИ — в конце, чтобы не сдвинуть ссылочные колонки
   // (D=Статус, E=Балл, H/I/M) в формулах листа «Статистика».
   columns.push(
     { header: "Вид экзамена", key: "examType", width: 13 },
+    { header: "ЕГЭ: Математика (база)", key: "mathBase", width: 13 },
+    { header: "ЕГЭ: Математика (профиль)", key: "mathProfile", width: 13 },
+    { header: "ЕГЭ: Русский язык", key: "russian", width: 13 },
+    { header: "ЕГЭ: Химия", key: "chemistry", width: 13 },
+    { header: "ЕГЭ: Физика", key: "physics", width: 13 },
+    { header: "ЕГЭ: Информатика", key: "informatics", width: 13 },
+    { header: "ЕГЭ: География", key: "geography", width: 13 },
     { header: "ВИ: Математика (профиль)", key: "viMathProfile", width: 13 },
     { header: "ВИ: Русский язык", key: "viRussian", width: 13 },
     { header: "ВИ: Химия", key: "viChemistry", width: 13 },
@@ -121,8 +128,16 @@ export async function GET(req: NextRequest) {
       row.inn = a.inn ?? "";
       row.registrationAddress = a.registrationAddress ?? "";
     }
-    // Вид экзамена и предметы ВИ. Колонка «ВИ» — сводка: общий балл при examType=vi.
+    // Вид экзамена, предметы ЕГЭ и ВИ.
+    // Колонка «Балл» — итог, «ВИ» — общий балл ВИ при examType=vi.
     row.examType = a.examType === "vi" ? "ВИ" : "ЕГЭ";
+    row.mathBase = a.mathBase ?? "";
+    row.mathProfile = a.mathProfile ?? "";
+    row.russian = a.russian ?? "";
+    row.chemistry = a.chemistry ?? "";
+    row.physics = a.physics ?? "";
+    row.informatics = a.informatics ?? "";
+    row.geography = a.geography ?? "";
     row.viMathProfile = a.viMathProfile ?? "";
     row.viRussian = a.viRussian ?? "";
     row.viChemistry = a.viChemistry ?? "";
